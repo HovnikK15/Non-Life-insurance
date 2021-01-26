@@ -4,11 +4,99 @@ output: html_document
 author: "Klemen Hovnik and Manca Strgar"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
+#package instalation:
+packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl")
+new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
+
+if(sum(!(packages %in% installed.packages()[, "Package"]))) {
+  stop(paste('The following required packages are not installed:\n', 
+             paste(packages[which(!(packages %in% installed.packages()[, "Package"]))], collapse = ', ')));
+} else {
+  message("Everything is set up correctly. You are ready to go.")
+}
+#libraries:
+library(dplyr)
+library(knitr)
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+```
+## Importing dataset
+
+```{r, echo=F}
+#Okolje, kjer pišeš kodo - Ta celotni kvadratek skopiras, ko kaj rabiš
+```
+
+First, we need to import Insurance contract data from the file `NonFleetCo507` into R. The file contains 159.947 contracts with 11 variables. The column `Clm Count` shows how many claims were filed on the contract. This is the loss frequency data that we will use for model fitting. The column `TLength` shows the period of exposure during which the contract was active and the Clm Count was filed. 
+
+```{r, echo=F}
+mtpl_orig <- read.delim("NonFleetCo507.txt", header = TRUE)
+mtpl_orig=as_tibble(mtpl_orig)
+str(mtpl_orig)
+#summary(mtpl_orig)
+head(mtpl_orig)
+
+```
+**Tu lahko dodama opis tabele, torej kaj kaj predstavlja, kaj je max, min..
+
+We could rename colums in our dataset to make it easier to work with. We will rename the column `Clm_Count` into `nclaims` as the number of claims, and `TLength` into `expo` as exposure. For easier programming we will also rename `AgeInsued` and `SexInsured` into `age` and `sex`.
+```{r, echo=F}
+#We don't need all the colums, so we can make new table which has only imporant colums about insurance contract
+mtpl <- mtpl_orig %>% select(-PrivateCar, -VehCapCubic, -VehCapTonn)
+dim(mtpl)
+mtpl <- mtpl_orig %>%
+  # rename all columns 
+  rename_all(function(.name) {
+    .name %>% 
+      # replace all names with the lowercase versions
+      tolower 
+    })
+mtpl <- rename(mtpl, nclaims = clm_count,expo = tlength, sex = sexinsured, age = ageinsured )
+
+```
+
+First, we can  calculate empirical claim frequency, per unit of exposure. We see that we get `0.154`. 
+
+```{r first-risk-calculations-mtpl-2, echo = F, warning=FALSE}
+mtpl %>% summarize(emp_freq = sum(nclaims) / sum(expo))
+```
+
+If we do the same for each gender we see that claim frequency is higher for males than females.
+
+```{r, echo = F, warning=FALSE, message=FALSE}
+mtpl %>% 
+  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo)) %>% kable(format = "html") 
+```
+
+We can show number of claims on the graph. We can observe that the number of actual claims represents only a small proportion of all insurance contracts.
+```{r}
+
+g <- ggplot(mtpl, aes(nclaims)) + theme_bw() + 
+     geom_bar(aes(weight = expo), col = "red", 
+              fill = "red", alpha = 0.5) + 
+     labs(y = "Abs freq (in exposure)") +
+     ggtitle("MTPL - number of claims")
+g
+```
+Looking at this in relative terms, we can see that in average almost more than 80% of insurance contract did not have any claims. 
+```{r}
+g <- ggplot(mtpl, aes(nclaims)) + theme_bw()
+g + geom_bar(aes(y = (..count..)/sum(..count..)), 
+    col = "red", fill = "red", alpha = 0.5) + 
+  labs(y = "Relative frequency") +
+  ggtitle("MTPL - relative number of claims")
+```
+
+
+
+
+
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
