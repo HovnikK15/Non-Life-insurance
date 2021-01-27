@@ -23,6 +23,7 @@ if(sum(!(packages %in% installed.packages()[, "Package"]))) {
 #libraries:
 library(dplyr)
 library(knitr)
+library(MASS)
 library(rmarkdown)
 library(tidyverse)
 library(ggplot2)
@@ -47,10 +48,10 @@ head(mtpl_orig)
 
 We could rename colums in our dataset to make it easier to work with. We will rename the column `Clm_Count` into `nclaims` as the number of claims, and `TLength` into `expo` as exposure. For easier programming we will also rename `AgeInsued` and `SexInsured` into `age` and `sex`.
 ```{r, echo=F}
-#We don't need all the colums, so we can make new table which has only imporant colums about insurance contract
-mtpl <- mtpl_orig %>% select(-PrivateCar, -VehCapCubic, -VehCapTonn)
-dim(mtpl)
-mtpl <- mtpl_orig %>%
+#We don't need all the colums, so we can make new table which has only imporant colums about #insurance contract
+mtpl <- mtpl_orig%>% dplyr::select(-PrivateCar, -VehCapCubic, -VehCapTonn)
+#dim(mtpl)
+mtpl <- mtpl %>%
   # rename all columns 
   rename_all(function(.name) {
     .name %>% 
@@ -61,31 +62,21 @@ mtpl <- rename(mtpl, nclaims = clm_count,expo = tlength, sex = sexinsured, age =
 
 ```
 
-First, we can  calculate empirical claim frequency, per unit of exposure. We see that we get `0.154`. 
+## 1. Empirical analysis
 
-```{r first-risk-calculations-mtpl-2, echo = F, warning=FALSE}
-mtpl %>% summarize(emp_freq = sum(nclaims) / sum(expo))
-```
+To have a better understanding of our data we can start by plotting number of claims per insurance contract on the graph. We can observe that the number of actual claims represents only a small proportion of all insurance contracts.
 
-If we do the same for each gender we see that claim frequency is higher for males than females.
-
-```{r, echo = F, warning=FALSE, message=FALSE}
-mtpl %>% 
-  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo)) %>% kable(format = "html") 
-```
-
-We can show number of claims on the graph. We can observe that the number of actual claims represents only a small proportion of all insurance contracts.
-```{r}
-
-g <- ggplot(mtpl, aes(nclaims)) + theme_bw() + 
-     geom_bar(aes(weight = expo), col = "red", 
+```{r, echo=F}
+k<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
               fill = "red", alpha = 0.5) + 
      labs(y = "Abs freq (in exposure)") +
-     ggtitle("MTPL - number of claims")
-g
+     ggtitle("MTPL - number of claims per contract")
+k
 ```
-Looking at this in relative terms, we can see that in average almost more than 80% of insurance contract did not have any claims. 
-```{r}
+
+Looking at this in relative terms, we can see that more than 90% of insurance contract did not have any claims. 
+
+```{r, echo=F}
 g <- ggplot(mtpl, aes(nclaims)) + theme_bw()
 g + geom_bar(aes(y = (..count..)/sum(..count..)), 
     col = "red", fill = "red", alpha = 0.5) + 
@@ -95,23 +86,185 @@ g + geom_bar(aes(y = (..count..)/sum(..count..)),
 
 
 
+Continuing our analysis, we can compute the mean and variance of the number of observed claims. 
 
+```{r, echo = F, warning=FALSE}
+mean1 <-  sum(mtpl$nclaims) /length(mtpl$nclaims)
+var1 <-  sum((mtpl$nclaims - mean1)^2) /length(mtpl$nclaims)
+c(mean = mean1, variance = var1)
 
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+Because we have different exposures between policyholders, we could take exposure information `expo` into account as well. Then we can calculate empirical claim frequency, per unit of exposure and variance. 
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r first-risk-calculations-mtpl-2, echo = F, warning=FALSE}
+mean2 <- sum(mtpl$nclaims) / sum(mtpl$expo); 
+var2 <- sum((mtpl$nclaims-mean2*mtpl$expo)^2)/sum(mtpl$expo) 
+mean2
+c(mean = mean2,   variance = var2)
+#mtpl %>% summarize(emp_freq = mean2, variance = var2 )
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+If we do the same for each gender we see that claim frequency is higher for males than females.
+
+```{r, echo = F, warning=FALSE, message=FALSE}
+mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
+```
+
+## 2. Fitting different distributions to the loss frequency data
+
+We will fit different distribution to the observed claim count data. We will take exposure into account as well and will fit the distribution using Maximum Likelihood Estimation (MLE)
+
+### Poisson distribution
+
+We start by fitting the Poisson distribution to the observed loss frequency data.
+
+
+Since, not all policyholders are insured throughout the whole year (exposure = period of exposure during which the contract was active, is not equal to 1 for all the contracts), we assume that the claim intensity is proportional to the exposure. For Poisson distribution this means that the intensity is equal to $\lambda * expo$. For `expo=1` (contract active for a whole year), the expected number of claims equals to $\lambda.$ For all other contracts, the expected number of claims equals  $\lambda * expo$.
+$N_i \sim Poiss(\lambda * expo)$
+
+Let denote that $m$ is the number of observations and $n_{i}$ is the observed number of claims for i-th policyholder, then general definition of likelihood is given by:
+$$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda * expo) * \frac{(\lambda * expo)^{n_i}}{n_i!} $$
+
+$$l(\lambda)=\sum_{i = 1}^{m} -\lambda * expo + n_i * log(\lambda * expo) - log(n_i!)$$
+
+
+We can maximize loglikelihood with respect to $\lambda$. 
+```{r, echo=F}
+expo = mtpl$expo
+nclaims = mtpl$nclaims
+```
+
+```{r, echo = F}
+poisson.loglikelihood <- function(lambda)
+{
+  loglikelihood <- sum(-lambda * expo + nclaims * log(lambda * expo) - lfactorial(nclaims))
+  
+  return(loglikelihood)
+}
+
+```
+In practice, we minimize the negative log-likelihood so that we can use `nlm` (non-linear minimizer) function for finding the minimum.Minimizing the negative log-likelihood is equal to maximizing the log-likelihood.
+
+$$l(\lambda)=\sum_{i = 1}^{m} \lambda * expo - n_i * log(\lambda * expo) + n_i!$$
+
+Since the parameter $\lambda$ is strickly positive, we will reparametrize the likelihood and optimize for $\beta = log(\lambda)$ which can take values $(-\infty, \infty)$
+
+```{r, echo = F}
+
+poisson.negLoglikelihood <- function(beta)
+{
+  lambda = exp(beta)
+  
+  return(-poisson.loglikelihood(lambda))
+}
+```
+
+Now we will use non-linear minimization function to get the minimum value. The starting value will be set to $\beta = 1$. The function returns the following lines:
+
+- minimum: the value of estimated minimum of our functionž
+
+- estimate: the point at which that minimum is obtained.
+
+- gradient: first derivative at the estimated minimum 
+
+- hessian: second derivative at the estimated minimum
+
+```{r, echo = F, warning=FALSE}
+
+fit <- nlm(poisson.negLoglikelihood, 1, hessian = TRUE)
+fit
+```
+
+From this we can get the estimation of $\lambda$ which is identical to the expected value (empirical claim frequency per unit) that we have calculated before.
+
+```{r, echo = F}
+poisson.lambda <- exp(fit$estimate)
+poisson.lambda
+```
+
+The corresponding standard error equals:
+```{r, echo = F}
+sqrt(diag(solve(fit$hessian)))
+```
+Calculation of Akaike Information Criterion (AIC):
+Let $k$ be the number of estimated parameters in the model and let $L$ be the maximum value of the likelihood function for the model. Then the AIC value of the model is:
+$$AIC = 2k - 2ln(L)$$
+```{r, echo = F}
+poisson.minimum <- poisson.loglikelihood(poisson.lambda)
+AIC_poi = -2 * poisson.minimum + 2 * 1
+AIC_poi
+```
+
+### 3. Calculation with the help of Generalized Linear Models (GLMs)
+```{r, echo = F, warning=FALSE}
+
+neg_loglik_pois <- function(par, freq, expo){
+  lambda <- expo*exp(par)
+  -sum(dpois(freq, lambda, log = T))
+}
+sol_poi <- nlm(neg_loglik_pois, 1, hessian = TRUE, 
+               freq = mtpl$nclaims, expo = mtpl$expo)
+sol_poi
+
+exp(sol_poi$estimate);
+sqrt(diag(solve(sol_poi$hessian))) ;
+sol_poi$minimum;
+
+freq_glm_poi <- glm(nclaims ~ 1, offset = log(expo), 
+                  family = poisson(link = "log"), 
+                  data = mtpl)
+freq_glm_poi %>% broom::tidy()
+AIC_poi2 <- 2*length(sol_poi$estimate) + 2*sol_poi$minimum
+AIC_poi2
+
+```
+
+We can conclude, that both methods return the same results.
+
+## 4a. Negative Binomial distirbution
+
+```{r, echo=F}
+NB.negativeLoglikelihood <- function(beta)
+{
+  mu <- exp(beta[1])
+  a <- exp(beta[2])
+  
+  loglikelihood <- sum(lgamma(a + nclaims) - lgamma(a) - lfactorial(nclaims) + nclaims * log(mu*expo/(mu*expo + a)) + a * log(a / (mu * expo + a)))
+  
+  return(-loglikelihood)
+}
+mu <- sum(mtpl$nclaims) / sum(mtpl$expo)
+var <- sum((mtpl$nclaims-mean2*mtpl$expo)^2)/sum(mtpl$expo) 
+mu.initial <- mu
+a.initial <- mu^2 / (var - mu) 
+
+fit <- nlm(NB.negativeLoglikelihood, log(c(mu.initial, a.initial)),hessian=TRUE)
+fit
+
+```
+The corresponding standard error equals:
+```{r, echo = F}
+sqrt(diag(solve(fit$hessian)))
+```
+### use of GLMs
+```{r, echo = F, warning=FALSE}
+
+neg_loglik_nb <- function(par, freq, expo){
+  mu <- expo*exp(par[1])
+  r <- exp(par[2])
+  -sum(dnbinom(freq, size = r, mu = mu, log = TRUE))
+}
+sol_nb <- nlm(neg_loglik_nb, c(1, 1), hessian = TRUE, 
+              freq = mtpl$nclaims, expo = mtpl$expo)
+sol_nb
+sol_nb$estimate
+exp(sol_nb$estimate)
+sqrt(diag(solve(sol_nb$hessian))) 
+sol_nb$minimum
+```
+
+The variance estimated by this Negativ Binomial model is:
+```{r, echo = F}
+exp(sol_nb$estimate[1]) + (exp(sol_nb$estimate[1])^2)/(exp(sol_nb$estimate[2]))
+```
