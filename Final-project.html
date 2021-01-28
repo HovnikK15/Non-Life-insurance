@@ -368,10 +368,10 @@ summary {
 </div>
 
 
-<div id="importing-dataset" class="section level2">
-<h2>Importing dataset</h2>
+<div id="importing-dataset" class="section level1">
+<h1>1 Importing dataset</h1>
 <p>First, we need to import Insurance contract data from the file <code>NonFleetCo507</code> into R. The file contains 159.947 contracts with 11 variables. The column <code>Clm Count</code> shows how many claims were filed on the contract. This is the loss frequency data that we will use for model fitting. The column <code>TLength</code> shows the period of exposure during which the contract was active and the Clm Count was filed.</p>
-<pre><code>## tibble [159,947 x 11] (S3: tbl_df/tbl/data.frame)
+<pre class="bg-warning"><code>## tibble [159,947 x 11] (S3: tbl_df/tbl/data.frame)
 ##  $ AgeInsured : int [1:159947] 32 26 32 32 41 28 28 51 27 45 ...
 ##  $ SexInsured : chr [1:159947] &quot;M&quot; &quot;M&quot; &quot;M&quot; &quot;M&quot; ...
 ##  $ Experience : int [1:159947] 11 5 5 5 14 3 3 20 9 19 ...
@@ -383,21 +383,121 @@ summary {
 ##  $ Cover_C    : int [1:159947] 1 0 1 1 0 1 1 1 0 0 ...
 ##  $ VehCapCubic: int [1:159947] 1797 1590 1997 1997 1597 1587 1587 1587 1285 1166 ...
 ##  $ VehCapTonn : int [1:159947] 0 0 0 0 0 0 0 0 0 0 ...</code></pre>
-<pre><code>## # A tibble: 6 x 11
-##   AgeInsured SexInsured Experience TLength Clm_Count  VAge PrivateCar NCD_0
-##        &lt;int&gt; &lt;chr&gt;           &lt;int&gt;   &lt;dbl&gt;     &lt;int&gt; &lt;int&gt;      &lt;int&gt; &lt;int&gt;
-## 1         32 M                  11   0.465         0    10          1     0
-## 2         26 M                   5   0.808         0    13          1     1
-## 3         32 M                   5   0.400         0     0          1     0
-## 4         32 M                   5   0.583         0     1          1     0
-## 5         41 M                  14   0.775         0     9          1     0
-## 6         28 F                   3   0.493         0     0          1     1
-## # ... with 3 more variables: Cover_C &lt;int&gt;, VehCapCubic &lt;int&gt;, VehCapTonn &lt;int&gt;</code></pre>
+<table style="width:100%;">
+<colgroup>
+<col width="10%"></col>
+<col width="10%"></col>
+<col width="10%"></col>
+<col width="9%"></col>
+<col width="9%"></col>
+<col width="4%"></col>
+<col width="10%"></col>
+<col width="5%"></col>
+<col width="7%"></col>
+<col width="11%"></col>
+<col width="10%"></col>
+</colgroup>
+<thead>
+<tr class="header">
+<th align="right">AgeInsured</th>
+<th align="left">SexInsured</th>
+<th align="right">Experience</th>
+<th align="right">TLength</th>
+<th align="right">Clm_Count</th>
+<th align="right">VAge</th>
+<th align="right">PrivateCar</th>
+<th align="right">NCD_0</th>
+<th align="right">Cover_C</th>
+<th align="right">VehCapCubic</th>
+<th align="right">VehCapTonn</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">32</td>
+<td align="left">M</td>
+<td align="right">11</td>
+<td align="right">0.4654346</td>
+<td align="right">0</td>
+<td align="right">10</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1797</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">26</td>
+<td align="left">M</td>
+<td align="right">5</td>
+<td align="right">0.8076660</td>
+<td align="right">0</td>
+<td align="right">13</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">1590</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">32</td>
+<td align="left">M</td>
+<td align="right">5</td>
+<td align="right">0.3997262</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1997</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">32</td>
+<td align="left">M</td>
+<td align="right">5</td>
+<td align="right">0.5831622</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1997</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">41</td>
+<td align="left">M</td>
+<td align="right">14</td>
+<td align="right">0.7748118</td>
+<td align="right">0</td>
+<td align="right">9</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1597</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">28</td>
+<td align="left">F</td>
+<td align="right">3</td>
+<td align="right">0.4928131</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">1587</td>
+<td align="right">0</td>
+</tr>
+</tbody>
+</table>
 <p>**Tu lahko dodama opis tabele, torej kaj kaj predstavlja, kaj je max, min..</p>
 <p>We could rename colums in our dataset to make it easier to work with. We will rename the column <code>Clm_Count</code> into <code>nclaims</code> as the number of claims, and <code>TLength</code> into <code>expo</code> as exposure. For easier programming we will also rename <code>AgeInsued</code> and <code>SexInsured</code> into <code>age</code> and <code>sex</code>.</p>
 </div>
-<div id="empirical-analysis" class="section level2">
-<h2>1. Empirical analysis</h2>
+<div id="empirical-analysis-1.-vprašanje" class="section level1">
+<h1>2 Empirical analysis (1. vprašanje)</h1>
 <p>To have a better understanding of our data we can start by plotting number of claims per insurance contract on the graph. We can observe that the number of actual claims represents only a small proportion of all insurance contracts.</p>
 <p><img src="data:image/png;base64,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AqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAOAqrESisx7SCTLALqIKBKrLQS0w4yySKgDgKqxEorMe0gkywC6iCgSqy0EtMOMskioA4CqsRKKzHtIJMsAuogoEqstBLTDjLJIqAO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ZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZZBFQBwFVYqWVmHaQSRYBdRBQJVZaiWkHmWQRUAcBVWKllZh2kEkWAXUQUCVWWolpB5lkEVAHAVVipZWYdpBJFgF1EFAlVlqJaQeZ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" width="672" /></p>
 <p>Looking at this in relative terms, we can see that more than 90% of insurance contract did not have any claims.</p>
@@ -416,18 +516,20 @@ summary {
 ## 1 F        0.150
 ## 2 M        0.155</code></pre>
 </div>
-<div id="fitting-different-distributions-to-the-loss-frequency-data" class="section level2">
-<h2>2. Fitting different distributions to the loss frequency data</h2>
+<div id="fitting-different-distributions-to-the-loss-frequency-data" class="section level1">
+<h1>3 Fitting different distributions to the loss frequency data</h1>
 <p>We will fit different distribution to the observed claim count data. We will take exposure into account as well and will fit the distribution using Maximum Likelihood Estimation (MLE)</p>
-<div id="poisson-distribution" class="section level3">
-<h3>Poisson distribution</h3>
+<div id="poisson-distribution-2.-vprašanje" class="section level2">
+<h2>3.1 Poisson distribution (2. vprašanje)</h2>
+<div id="numerical-calculation" class="section level3">
+<h3>3.1.1 Numerical calculation</h3>
 <p>We start by fitting the Poisson distribution to the observed loss frequency data.</p>
 <p>Since, not all policyholders are insured throughout the whole year (exposure = period of exposure during which the contract was active, is not equal to 1 for all the contracts), we assume that the claim intensity is proportional to the exposure. For Poisson distribution this means that the intensity is equal to <span class="math inline">\(\lambda * expo\)</span>. For <code>expo=1</code> (contract active for a whole year), the expected number of claims equals to <span class="math inline">\(\lambda.\)</span> For all other contracts, the expected number of claims equals <span class="math inline">\(\lambda * expo\)</span>. <span class="math inline">\(N_i \sim Poiss(\lambda * expo)\)</span></p>
-<p>Let denote that <span class="math inline">\(m\)</span> is the number of observations and <span class="math inline">\(n_{i}\)</span> is the observed number of claims for i-th policyholder, then general definition of likelihood is given by: <span class="math display">\[L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda * expo) * \frac{(\lambda * expo)^{n_i}}{n_i!} \]</span></p>
-<p><span class="math display">\[l(\lambda)=\sum_{i = 1}^{m} -\lambda * expo + n_i * log(\lambda * expo) - log(n_i!)\]</span></p>
+<p>Let denote that <span class="math inline">\(m\)</span> is the number of observations and <span class="math inline">\(n_{i}\)</span> is the observed number of claims for i-th policyholder, then general definition of likelihood is given by: <span class="math display">\[L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda \cdot expo) \cdot \frac{(\lambda \cdot expo)^{n_i}}{n_i!} \]</span></p>
+<p><span class="math display">\[l(\lambda)=\sum_{i = 1}^{m} -\lambda \cdot expo + n_i \cdot log(\lambda \cdot expo) - log(n_i!)\]</span></p>
 <p>We can maximize loglikelihood with respect to <span class="math inline">\(\lambda\)</span>.</p>
 <p>In practice, we minimize the negative log-likelihood so that we can use <code>nlm</code> (non-linear minimizer) function for finding the minimum.Minimizing the negative log-likelihood is equal to maximizing the log-likelihood.</p>
-<p><span class="math display">\[l(\lambda)=\sum_{i = 1}^{m} \lambda * expo - n_i * log(\lambda * expo) + n_i!\]</span></p>
+<p><span class="math display">\[l(\lambda)=\sum_{i = 1}^{m} \lambda \cdot expo - n_i \cdot log(\lambda \cdot expo) + n_i!\]</span></p>
 <p>Since the parameter <span class="math inline">\(\lambda\)</span> is strickly positive, we will reparametrize the likelihood and optimize for <span class="math inline">\(\beta = log(\lambda)\)</span> which can take values <span class="math inline">\((-\infty, \infty)\)</span></p>
 <p>Now we will use non-linear minimization function to get the minimum value. The starting value will be set to <span class="math inline">\(\beta = 1\)</span>. The function returns the following lines:</p>
 <ul>
@@ -456,13 +558,17 @@ summary {
 ## [1] 11</code></pre>
 <p>From this we can get the estimation of <span class="math inline">\(\lambda\)</span> which is identical to the expected value (empirical claim frequency per unit) that we have calculated before.</p>
 <pre><code>## [1] 0.1545612</code></pre>
-<p>The corresponding standard error equals:</p>
+<p>In general, the covariance matrix of the maximum likelihood estimators can be estimated by the inverse of this hessian of minus the log-likelihood at the estimated minimum. By taking the square root of these diagonal elements, we obtain the corresponding standard error that equals:</p>
 <pre><code>## [1] 0.007967287</code></pre>
+</div>
+<div id="akaike-information-criterion" class="section level3">
+<h3>3.1.2 Akaike Information Criterion</h3>
 <p>Calculation of Akaike Information Criterion (AIC): Let <span class="math inline">\(k\)</span> be the number of estimated parameters in the model and let <span class="math inline">\(L\)</span> be the maximum value of the likelihood function for the model. Then the AIC value of the model is: <span class="math display">\[AIC = 2k - 2ln(L)\]</span></p>
 <pre><code>## [1] 101670.3</code></pre>
 </div>
 <div id="calculation-with-the-help-of-generalized-linear-models-glms" class="section level3">
-<h3>3. Calculation with the help of Generalized Linear Models (GLMs)</h3>
+<h3>3.1.3 Calculation with the help of Generalized Linear Models (GLMs)</h3>
+<p>We will now vertify our solution in the previous section for numerically computed log-likelihood with the <code>glm</code> function. We will put focus on the Poisson regression model. Under Poisson assumption in this model, the number of claims is distributed as follows: <span class="math display">\[N \sim Poiss(\mu),\]</span> <span class="math display">\[\mu = expo \cdot exp(x^`\beta).\]</span></p>
 <pre><code>## $minimum
 ## [1] 50834.16
 ## 
@@ -481,19 +587,21 @@ summary {
 ## 
 ## $iterations
 ## [1] 11</code></pre>
-<pre><code>## [1] 0.1545611</code></pre>
+<p>We can see that we get the same values of the estimate, and minimum.</p>
+<p>We can also calculate correspoding standard deviation:</p>
 <pre><code>## [1] 0.007967289</code></pre>
-<pre><code>## [1] 50834.16</code></pre>
-<pre><code>## # A tibble: 1 x 5
-##   term        estimate std.error statistic p.value
-##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
-## 1 (Intercept)    -1.87   0.00797     -234.       0</code></pre>
+<p>The value of AIC also stays the same and it is equal to:</p>
 <pre><code>## [1] 101670.3</code></pre>
 <p>We can conclude, that both methods return the same results.</p>
 </div>
 </div>
-<div id="a.-negative-binomial-distirbution" class="section level2">
-<h2>4a. Negative Binomial distirbution</h2>
+<div id="negative-binomial-distirbution" class="section level2">
+<h2>3.2 Negative Binomial distirbution</h2>
+<div id="numerical-calculation-1" class="section level3">
+<h3>3.2.1 Numerical calculation</h3>
+<p>The pobability function for the negative binomal distribution is: <span class="math display">\[P(N=k)=\frac{\Gamma(a+k)}{\Gamma(a)k!}(\frac{\mu}{\mu+a})^k(\frac{a}{\mu+a})^a\]</span> where <span class="math inline">\(\mu\)</span> is the expected number of claims for a policy holder who is insured for a full year. So for each policy holder we can define <span class="math inline">\(\mu_i = expo\cdot \mu.\)</span></p>
+<p>The ??Log function equals: <span class="math display">\[L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i)\]</span> <span class="math display">\[l(\lambda)=\sum_{i = 1}^{m} log(\Gamma(a+k)) - log(\Gamma(a)k!)+k\cdot log(\frac{\mu}{\mu+a})+a\cdot log(\frac{a}{\mu+a}).\]</span></p>
+<p>We know that <span class="math inline">\(\mu=E(X)\)</span> <span class="math inline">\(a=\frac{\mu^2}{Var(X)-\mu}\)</span></p>
 <pre><code>## $minimum
 ## [1] 50657.21
 ## 
@@ -515,8 +623,13 @@ summary {
 ## [1] 5</code></pre>
 <p>The corresponding standard error equals:</p>
 <pre><code>## [1] 0.008299497 0.065430830</code></pre>
-<div id="use-of-glms" class="section level3">
-<h3>use of GLMs</h3>
+</div>
+<div id="akaike-information-criterion-1" class="section level3">
+<h3>3.2.2 Akaike Information Criterion</h3>
+<pre><code>## [1] 101318.4</code></pre>
+</div>
+<div id="calculation-with-the-help-of-generalized-linear-models-glms-1" class="section level3">
+<h3>3.2.3 Calculation with the help of Generalized Linear Models (GLMs)</h3>
 <pre><code>## $minimum
 ## [1] 50657.21
 ## 
@@ -536,12 +649,149 @@ summary {
 ## 
 ## $iterations
 ## [1] 24</code></pre>
-<pre><code>## [1] -1.8666054  0.3823848</code></pre>
-<pre><code>## [1] 0.1546477 1.4657760</code></pre>
+<p>We get the same standard deviation as from the numerical calculaton:</p>
 <pre><code>## [1] 0.008299507 0.065430320</code></pre>
-<pre><code>## [1] 50657.21</code></pre>
 <p>The variance estimated by this Negativ Binomial model is:</p>
 <pre><code>## [1] 0.170964</code></pre>
+</div>
+</div>
+<div id="zero-inflated-poisson-distirbution" class="section level2">
+<h2>3.3 Zero Inflated Poisson distirbution</h2>
+<div id="numerical-calculation-2" class="section level3">
+<h3>3.3.1 Numerical calculation</h3>
+<p>This is a Poisson distribution where the probability of having zero claims is increased by <span class="math inline">\(p\)</span>.</p>
+<p><span class="math display">\[ P(N^{ZI}=k) =   \left\{
+\begin{array}{ll}
+      p+(1-p) \cdot P(N=0) ; k=0, \\
+      (1-p) \cdot P(N=k) ; k&gt;0 \\
+\end{array} 
+\right.  \]</span> where <span class="math inline">\(N\)</span> represents Poisson distribution. The parameter <span class="math inline">\(p\)</span> takes valued in <span class="math inline">\([0,1]\)</span>, so we can transform in to the real line <span class="math inline">\((-\infty,\infty)\)</span> with logarithm: <span class="math display">\[logit(p)=log(\frac{p}{1-p})=\beta\]</span> <span class="math display">\[p=\frac{exp(\beta)}{1+exp(\beta)}\]</span></p>
+<pre><code>## $minimum
+## [1] 50663.24
+## 
+## $estimate
+## [1] -1.3754366 -0.4551083
+## 
+## $gradient
+## [1] -0.02995685  0.02011802
+## 
+## $hessian
+##           [,1]      [,2]
+## [1,] 14606.513 -5622.753
+## [2,] -5622.753  2422.831
+## 
+## $code
+## [1] 1
+## 
+## $iterations
+## [1] 13</code></pre>
+<pre><code>##    lambda         p 
+## 0.2527292 0.3881469</code></pre>
+<p>The corresponding standard error equals:</p>
+<pre><code>## [1] 0.02533814 0.06221376</code></pre>
+</div>
+<div id="akaike-information-criterion-2" class="section level3">
+<h3>3.3.2 Akaike Information Criterion</h3>
+<pre><code>## [1] 101330.5</code></pre>
+</div>
+<div id="calculation-with-the-help-of-generalized-linear-models-glms-2" class="section level3">
+<h3>3.3.3 Calculation with the help of Generalized Linear Models (GLMs)</h3>
+<pre><code>## Warning in nlm(neg_loglik_ZIP, c(1, 1), hessian = TRUE, freq = mtpl$nclaims, :
+## NA/Inf replaced by maximum positive value
+
+## Warning in nlm(neg_loglik_ZIP, c(1, 1), hessian = TRUE, freq = mtpl$nclaims, :
+## NA/Inf replaced by maximum positive value</code></pre>
+<pre><code>## $minimum
+## [1] 50663.24
+## 
+## $estimate
+## [1] -1.3754419 -0.4551319
+## 
+## $gradient
+## [1]  0.024629800 -0.007006747
+## 
+## $hessian
+##           [,1]      [,2]
+## [1,] 14606.589 -5622.701
+## [2,] -5622.701  2422.759
+## 
+## $code
+## [1] 1
+## 
+## $iterations
+## [1] 14</code></pre>
+<p>Corresponding standard errors:</p>
+<pre><code>## [1] 0.02533873 0.06221629</code></pre>
+</div>
+</div>
+<div id="hurdle-poisson-distirbution" class="section level2">
+<h2>3.4 Hurdle Poisson distirbution</h2>
+<div id="numerical-calculation-3" class="section level3">
+<h3>3.4.1 Numerical calculation</h3>
+<p>In Hurlde Poisson the probability of observing zero claims is set to <span class="math inline">\(p\)</span>. The probability of observing <span class="math inline">\(k\)</span> claims equals: <span class="math display">\[ P(N^{H}=k) =   \left\{
+\begin{array}{ll}
+      p ; k=0, \\
+      (1-p) \cdot \frac{(N=k)}{1-P(N=0)} ; k&gt;0 \\
+\end{array} 
+\right.  \]</span> Here the probability <span class="math inline">\(p\)</span> does not depend on the exposure, while intensity <span class="math inline">\(\lambda\)</span> is proportional to exposure as: <span class="math inline">\(\lambda_i=expo\cdot \lambda.\)</span></p>
+<pre><code>## $minimum
+## [1] 52955.24
+## 
+## $estimate
+## [1] -1.381171  2.323694
+## 
+## $gradient
+## [1] 4.741167e-05 1.087780e-02
+## 
+## $hessian
+##               [,1]          [,2]
+## [1,]  1.540939e+03 -3.131203e-04
+## [2,] -3.131203e-04  1.298946e+04
+## 
+## $code
+## [1] 1
+## 
+## $iterations
+## [1] 12</code></pre>
+<pre><code>##    lambda         p 
+## 0.2512842 0.9108204</code></pre>
+<p>The corresponding standard error equals:</p>
+<pre><code>## [1] 0.025474597 0.008774137</code></pre>
+</div>
+<div id="akaike-information-criterion-3" class="section level3">
+<h3>3.4.2 Akaike Information Criterion</h3>
+<pre><code>## [1] 105914.5</code></pre>
+</div>
+<div id="calculation-with-the-help-of-generalized-linear-models-glms-3" class="section level3">
+<h3>3.4.3 Calculation with the help of Generalized Linear Models (GLMs)</h3>
+<pre><code>## $minimum
+## [1] 52955.24
+## 
+## $estimate
+## [1] -1.381172  2.323693
+## 
+## $gradient
+## [1] -0.001306454  0.002069726
+## 
+## $hessian
+##              [,1]         [,2]
+## [1,] 1.540938e+03 3.131204e-04
+## [2,] 3.131204e-04 1.298947e+04
+## 
+## $code
+## [1] 1
+## 
+## $iterations
+## [1] 11</code></pre>
+<p>Corresponding standard errors:</p>
+<pre><code>## [1] 0.025474603 0.008774134</code></pre>
+<p>Now that we have calculated AIC for all distributions we can compare the values. The best AIC value is the lowest one.</p>
+<pre><code>##    AIC POI     AIC NB    AIC ZIP AIC HURDLE 
+##     101670     101318     101330     105914</code></pre>
+<p>We can observe that the lowest AIC value is achieved in the Negative Binomial distribution, followed by Zero Inflated Poisson. We can also see that Hurdle distribution has by far the worst AIC. **Kaj to pomeni - ne vem</p>
+<pre><code>## AIC NB 
+## 101318</code></pre>
+</div>
 </div>
 </div>
 

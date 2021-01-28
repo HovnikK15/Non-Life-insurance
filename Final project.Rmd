@@ -27,8 +27,9 @@ library(MASS)
 library(rmarkdown)
 library(tidyverse)
 library(ggplot2)
+library(pscl) 
 ```
-## Importing dataset
+# 1 Importing dataset
 
 ```{r, echo=F}
 #Okolje, kjer pišeš kodo - Ta celotni kvadratek skopiras, ko kaj rabiš
@@ -36,12 +37,13 @@ library(ggplot2)
 
 First, we need to import Insurance contract data from the file `NonFleetCo507` into R. The file contains 159.947 contracts with 11 variables. The column `Clm Count` shows how many claims were filed on the contract. This is the loss frequency data that we will use for model fitting. The column `TLength` shows the period of exposure during which the contract was active and the Clm Count was filed. 
 
-```{r, echo=F}
+```{r, echo=F, class.output="bg-warning"}
+#KK SE TI ZDI ČE JE OUTPUT OKVIRČEK TAKE RUMENE BARVE NAMEST BELE? 
 mtpl_orig <- read.delim("NonFleetCo507.txt", header = TRUE)
 mtpl_orig=as_tibble(mtpl_orig)
 str(mtpl_orig)
 #summary(mtpl_orig)
-head(mtpl_orig)
+kable(head(mtpl_orig))
 
 ```
 **Tu lahko dodama opis tabele, torej kaj kaj predstavlja, kaj je max, min..
@@ -62,7 +64,7 @@ mtpl <- rename(mtpl, nclaims = clm_count,expo = tlength, sex = sexinsured, age =
 
 ```
 
-## 1. Empirical analysis
+# 2 Empirical analysis (1. vprašanje)
 
 To have a better understanding of our data we can start by plotting number of claims per insurance contract on the graph. We can observe that the number of actual claims represents only a small proportion of all insurance contracts.
 
@@ -111,11 +113,13 @@ If we do the same for each gender we see that claim frequency is higher for male
 mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 ```
 
-## 2. Fitting different distributions to the loss frequency data
+# 3 Fitting different distributions to the loss frequency data
 
 We will fit different distribution to the observed claim count data. We will take exposure into account as well and will fit the distribution using Maximum Likelihood Estimation (MLE)
 
-### Poisson distribution
+## 3.1 Poisson distribution (2. vprašanje)
+
+### 3.1.1 Numerical calculation
 
 We start by fitting the Poisson distribution to the observed loss frequency data.
 
@@ -124,9 +128,9 @@ Since, not all policyholders are insured throughout the whole year (exposure = p
 $N_i \sim Poiss(\lambda * expo)$
 
 Let denote that $m$ is the number of observations and $n_{i}$ is the observed number of claims for i-th policyholder, then general definition of likelihood is given by:
-$$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda * expo) * \frac{(\lambda * expo)^{n_i}}{n_i!} $$
+$$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda \cdot expo) \cdot \frac{(\lambda \cdot expo)^{n_i}}{n_i!} $$
 
-$$l(\lambda)=\sum_{i = 1}^{m} -\lambda * expo + n_i * log(\lambda * expo) - log(n_i!)$$
+$$l(\lambda)=\sum_{i = 1}^{m} -\lambda \cdot expo + n_i \cdot log(\lambda \cdot expo) - log(n_i!)$$
 
 
 We can maximize loglikelihood with respect to $\lambda$. 
@@ -146,7 +150,7 @@ poisson.loglikelihood <- function(lambda)
 ```
 In practice, we minimize the negative log-likelihood so that we can use `nlm` (non-linear minimizer) function for finding the minimum.Minimizing the negative log-likelihood is equal to maximizing the log-likelihood.
 
-$$l(\lambda)=\sum_{i = 1}^{m} \lambda * expo - n_i * log(\lambda * expo) + n_i!$$
+$$l(\lambda)=\sum_{i = 1}^{m} \lambda \cdot expo - n_i \cdot log(\lambda \cdot expo) + n_i!$$
 
 Since the parameter $\lambda$ is strickly positive, we will reparametrize the likelihood and optimize for $\beta = log(\lambda)$ which can take values $(-\infty, \infty)$
 
@@ -179,14 +183,17 @@ fit
 From this we can get the estimation of $\lambda$ which is identical to the expected value (empirical claim frequency per unit) that we have calculated before.
 
 ```{r, echo = F}
-poisson.lambda <- exp(fit$estimate)
-poisson.lambda
+poisson.lambda <- exp(fit$estimate) 
+poisson.lambda  #estimated value of lambda
 ```
 
-The corresponding standard error equals:
+In general, the covariance matrix of the maximum likelihood estimators can be estimated by the inverse of this hessian of minus the log-likelihood at the estimated minimum. By taking the square root of these diagonal elements, we obtain the corresponding standard error that equals:
 ```{r, echo = F}
 sqrt(diag(solve(fit$hessian)))
 ```
+
+### 3.1.2 Akaike Information Criterion
+
 Calculation of Akaike Information Criterion (AIC):
 Let $k$ be the number of estimated parameters in the model and let $L$ be the maximum value of the likelihood function for the model. Then the AIC value of the model is:
 $$AIC = 2k - 2ln(L)$$
@@ -196,35 +203,56 @@ AIC_poi = -2 * poisson.minimum + 2 * 1
 AIC_poi
 ```
 
-### 3. Calculation with the help of Generalized Linear Models (GLMs)
+### 3.1.3 Calculation with the help of Generalized Linear Models (GLMs)
+
+We will now vertify our solution in the previous section for numerically computed log-likelihood with the `glm` function. We will put focus on the Poisson regression model. Under Poisson assumption in this model, the number of claims is distributed as follows:
+$$N \sim Poiss(\mu),$$ $$\mu = expo \cdot exp(x^`\beta).$$
+
 ```{r, echo = F, warning=FALSE}
 
 neg_loglik_pois <- function(par, freq, expo){
   lambda <- expo*exp(par)
   -sum(dpois(freq, lambda, log = T))
 }
-sol_poi <- nlm(neg_loglik_pois, 1, hessian = TRUE, 
+fit_poi <- nlm(neg_loglik_pois, 1, hessian = TRUE, 
                freq = mtpl$nclaims, expo = mtpl$expo)
-sol_poi
+fit_poi
 
-exp(sol_poi$estimate);
-sqrt(diag(solve(sol_poi$hessian))) ;
-sol_poi$minimum;
+```
+We can see that we get the same values of the estimate, and minimum. 
 
-freq_glm_poi <- glm(nclaims ~ 1, offset = log(expo), 
-                  family = poisson(link = "log"), 
-                  data = mtpl)
-freq_glm_poi %>% broom::tidy()
-AIC_poi2 <- 2*length(sol_poi$estimate) + 2*sol_poi$minimum
+We can also calculate correspoding standard deviation:
+
+```{r, echo = F}
+sqrt(diag(solve(fit_poi$hessian)))
+```
+
+The value of AIC also stays the same and it is equal to:
+```{r, echo=F}
+
+AIC_poi2 <- 2*length(fit_poi$estimate) + 2*fit_poi$minimum
 AIC_poi2
 
 ```
 
 We can conclude, that both methods return the same results.
 
-## 4a. Negative Binomial distirbution
+## 3.2 Negative Binomial distirbution
+### 3.2.1 Numerical calculation
+
+The pobability function for the negative binomal distribution is:
+$$P(N=k)=\frac{\Gamma(a+k)}{\Gamma(a)k!}(\frac{\mu}{\mu+a})^k(\frac{a}{\mu+a})^a$$
+where $\mu$ is the expected number of claims for a policy holder who is insured for a full year. So for each policy holder we can define $\mu_i = expo\cdot \mu.$
+
+The ??Log function equals:
+$$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i)$$
+$$l(\lambda)=\sum_{i = 1}^{m} log(\Gamma(a+k)) - log(\Gamma(a)k!)+k\cdot log(\frac{\mu}{\mu+a})+a\cdot log(\frac{a}{\mu+a}).$$
 
 ```{r, echo=F}
+#From empirical analysis we know that: 
+mu <- sum(mtpl$nclaims) / sum(mtpl$expo)
+var <- sum((mtpl$nclaims-mu*mtpl$expo)^2)/sum(mtpl$expo) 
+
 NB.negativeLoglikelihood <- function(beta)
 {
   mu <- exp(beta[1])
@@ -234,20 +262,31 @@ NB.negativeLoglikelihood <- function(beta)
   
   return(-loglikelihood)
 }
-mu <- sum(mtpl$nclaims) / sum(mtpl$expo)
-var <- sum((mtpl$nclaims-mean2*mtpl$expo)^2)/sum(mtpl$expo) 
-mu.initial <- mu
-a.initial <- mu^2 / (var - mu) 
+```
 
-fit <- nlm(NB.negativeLoglikelihood, log(c(mu.initial, a.initial)),hessian=TRUE)
-fit
+We know that $\mu=E(X)$ $a=\frac{\mu^2}{Var(X)-\mu}$
+
+```{r, echo=F}
+#Starting point:
+mean <- mu
+a0 <- mu^2 / (var - mu) 
+# we know that beta[1] = log(mu) and beta[2]=log(a0)
+
+fit2 <- nlm(NB.negativeLoglikelihood, log(c(mean, a0)),hessian=TRUE)
+fit2
 
 ```
 The corresponding standard error equals:
 ```{r, echo = F}
-sqrt(diag(solve(fit$hessian)))
+sqrt(diag(solve(fit2$hessian)))
 ```
-### use of GLMs
+### 3.2.2 Akaike Information Criterion
+```{r, echo=F}
+nb.loglik <- -fit2$minimum
+AIC_nb = - 2 * nb.loglik + 2 * 2
+AIC_nb
+```
+### 3.2.3 Calculation with the help of Generalized Linear Models (GLMs)
 ```{r, echo = F, warning=FALSE}
 
 neg_loglik_nb <- function(par, freq, expo){
@@ -255,16 +294,194 @@ neg_loglik_nb <- function(par, freq, expo){
   r <- exp(par[2])
   -sum(dnbinom(freq, size = r, mu = mu, log = TRUE))
 }
-sol_nb <- nlm(neg_loglik_nb, c(1, 1), hessian = TRUE, 
+fit_nb <- nlm(neg_loglik_nb, c(1, 1), hessian = TRUE, 
               freq = mtpl$nclaims, expo = mtpl$expo)
-sol_nb
-sol_nb$estimate
-exp(sol_nb$estimate)
-sqrt(diag(solve(sol_nb$hessian))) 
-sol_nb$minimum
+fit_nb
+##fit_nb$estimate
+#exp(fit_nb$estimate)
+```
+
+We get the same standard deviation as from the numerical calculaton:
+```{r, echo=F}
+sqrt(diag(solve(fit_nb$hessian))) 
+
 ```
 
 The variance estimated by this Negativ Binomial model is:
 ```{r, echo = F}
-exp(sol_nb$estimate[1]) + (exp(sol_nb$estimate[1])^2)/(exp(sol_nb$estimate[2]))
+exp(fit_nb$estimate[1]) + (exp(fit_nb$estimate[1])^2)/(exp(fit_nb$estimate[2]))
+```
+
+
+## 3.3 Zero Inflated Poisson  distirbution
+### 3.3.1 Numerical calculation
+This is a Poisson distribution where the probability of having zero claims is increased by $p$.
+
+$$ P(N^{ZI}=k) =   \left\{
+\begin{array}{ll}
+      p+(1-p) \cdot P(N=0) ; k=0, \\
+      (1-p) \cdot P(N=k) ; k>0 \\
+\end{array} 
+\right.  $$
+where $N$ represents Poisson distribution. 
+The parameter $p$ takes valued in $[0,1]$, so we can transform in to the real line $(-\infty,\infty)$ with logarithm:
+$$logit(p)=log(\frac{p}{1-p})=\beta$$ 
+$$p=\frac{exp(\beta)}{1+exp(\beta)}$$
+```{r, echo = F}
+ZIP.negativeLoglikelihood <- function(beta)
+{
+  lambda <- exp(beta[1])
+  p <- exp(beta[2])/(1+exp(beta[2]))
+  
+  density <- (p + (1-p) * exp(-expo * lambda))^(nclaims == 0) * ((1-p) * exp(-expo * lambda) * (expo *lambda)^nclaims / gamma(nclaims+1))^(nclaims != 0) 
+  
+  loglikelihood <- sum(log(density))
+  
+  return(-loglikelihood)
+}
+```
+
+```{r, echo=F, warning=FALSE}
+fit3 <- nlm(ZIP.negativeLoglikelihood, c(0, 0),hessian=TRUE)
+fit3
+```
+
+
+
+```{r, echo=F}
+ZIP.lambda <- exp(fit3$estimate[1])
+ZIP.p <- exp(fit3$estimate[2])/(1+exp(fit3$estimate[2]))
+c(lambda = ZIP.lambda, p = ZIP.p)
+
+```
+
+The corresponding standard error equals:
+```{r, echo = F}
+sqrt(diag(solve(fit3$hessian)))
+```
+
+### 3.3.2 Akaike Information Criterion
+
+```{r, echo=F}
+ZIP.loglik <- -fit3$minimum
+AIC_zip = -2 * ZIP.loglik + 2 * 2
+AIC_zip
+```
+
+### 3.3.3 Calculation with the help of Generalized Linear Models (GLMs)
+
+```{r, echo=F, warning==FALSE, message=FALSE}
+neg_loglik_ZIP <- function(par, freq, expo){
+  lambda <- expo*exp(par[1])
+  p <- exp(par[2])/(1+exp(par[2]))
+  -sum((freq == 0) * (log(p + (1-p)*dpois(0, lambda, log = FALSE)))) - 
+    sum((freq != 0) * (log((1-p)) + dpois(freq, lambda, log = TRUE)))
+}
+fit_ZIP <- nlm(neg_loglik_ZIP, c(1, 1), hessian = TRUE, 
+              freq = mtpl$nclaims, expo = mtpl$expo)
+fit_ZIP
+```
+
+Corresponding standard errors:
+
+```{r, echo=F}
+fit_ZIP_se <- sqrt(diag(solve(fit_ZIP$hessian)))
+fit_ZIP_se
+```
+
+## 3.4 Hurdle Poisson distirbution
+### 3.4.1 Numerical calculation
+In Hurlde Poisson the probability of observing zero claims is set to $p$. The probability of observing $k$ claims equals:
+$$ P(N^{H}=k) =   \left\{
+\begin{array}{ll}
+      p ; k=0, \\
+      (1-p) \cdot \frac{(N=k)}{1-P(N=0)} ; k>0 \\
+\end{array} 
+\right.  $$
+Here the probability $p$ does not depend on the exposure, while intensity $\lambda$ is proportional to exposure as: $\lambda_i=expo\cdot \lambda.$
+
+```{r, echo=F}
+Hurdle.negativeLoglikelihood <- function(beta)
+{
+  lambda <- exp(beta[1])
+  p <- exp(beta[2])/(1+exp(beta[2]))
+  
+  density <- (p)^(nclaims == 0) * ((1-p) * exp(-expo * lambda) / (1-exp(-lambda * expo)) * (expo *lambda)^nclaims / gamma(nclaims+1))^(nclaims != 0) 
+  
+  loglikelihood <- sum(log(density))
+  
+  return(-loglikelihood)
+}
+```
+
+
+```{r, echo=F, warning=FALSE}
+fit4 <- nlm(Hurdle.negativeLoglikelihood, c(0, 0),hessian=TRUE)
+fit4
+```
+```{r, echo=F}
+Hurdle.lambda <- exp(fit4$estimate[1])
+Hurdle.p <- exp(fit4$estimate[2])/(1+exp(fit4$estimate[2]))
+c(lambda = Hurdle.lambda, p = Hurdle.p)
+
+```
+
+The corresponding standard error equals:
+```{r, echo = F}
+sqrt(diag(solve(fit4$hessian)))
+```
+### 3.4.2 Akaike Information Criterion
+
+```{r, echo=F}
+Hurdle.loglik <- -fit4$minimum
+AIC_Hurdle = -2 * Hurdle.loglik + 2 * 2
+AIC_Hurdle
+```
+
+### 3.4.3 Calculation with the help of Generalized Linear Models (GLMs)
+
+```{r, echo=F, warning=FALSE, message=FALSE}
+#Bodi ponosna, tto funkcijo sem sam napisal pa sem dobil prav, #yeea
+
+neg_loglik_HURDLE <- function(par, freq, expo){
+  lambda <- expo*exp(par[1])
+  p <- exp(par[2])/(1+exp(par[2]))
+  -sum((freq == 0) * (log(p ))) - 
+    sum((freq != 0) * (log((1-p)) + dpois(freq, lambda, log = TRUE)-log((1-dpois(0, lambda, log = FALSE)))))
+}
+fit_HURDLE <- nlm(neg_loglik_HURDLE, c(1, 1), hessian = TRUE, 
+              freq = mtpl$nclaims, expo = mtpl$expo)
+fit_HURDLE
+```
+
+Corresponding standard errors:
+
+```{r, echo=F}
+fit_HURDLE_se <- sqrt(diag(solve(fit_HURDLE$hessian)))
+fit_HURDLE_se
+```
+
+Now that we have calculated AIC for all distributions we can compare the values. The best AIC value is the lowest one.
+
+
+```{r, echo=F}
+AIC <- round(c("AIC POI"= AIC_poi, "AIC NB"=AIC_nb,"AIC ZIP"= AIC_zip, "AIC HURDLE"=AIC_Hurdle))
+AIC
+
+```
+We can observe that the lowest AIC value is achieved in the Negative Binomial distribution, followed by Zero Inflated Poisson. We can also see that Hurdle distribution has by far the worst AIC. 
+**Kaj to pomeni - ne vem
+
+```{r, echo=F}
+AIC[which.min(AIC)]
+```
+
+
+```{r, echo=F}
+
+```
+
+
+```{r, echo=F}
+
 ```
