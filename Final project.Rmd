@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
 #package instalation:
-packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl")
+packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl", "rmarkdown", "ggplot2")
 new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new_packages)) install.packages(new_packages)
 
@@ -189,7 +189,8 @@ poisson.lambda  #estimated value of lambda
 
 In general, the covariance matrix of the maximum likelihood estimators can be estimated by the inverse of this hessian of minus the log-likelihood at the estimated minimum. By taking the square root of these diagonal elements, we obtain the corresponding standard error that equals:
 ```{r, echo = F}
-sqrt(diag(solve(fit$hessian)))
+se_nlm_poiss <- sqrt(diag(solve(fit$hessian)))
+se_nlm_poiss
 ```
 
 ### 3.1.2 Akaike Information Criterion
@@ -208,32 +209,26 @@ AIC_poi
 We will now vertify our solution in the previous section for numerically computed log-likelihood with the `glm` function. We will put focus on the Poisson regression model. Under Poisson assumption in this model, the number of claims is distributed as follows:
 $$N \sim Poiss(\mu),$$ $$\mu = expo \cdot exp(x^`\beta).$$
 
-```{r, echo = F, warning=FALSE}
 
-neg_loglik_pois <- function(par, freq, expo){
-  lambda <- expo*exp(par)
-  -sum(dpois(freq, lambda, log = T))
-}
-fit_poi <- nlm(neg_loglik_pois, 1, hessian = TRUE, 
-               freq = mtpl$nclaims, expo = mtpl$expo)
-fit_poi
+```{r, echo=F, warning=FALSE}
+fm_pois <- glm(nclaims ~ 1, offset = log(expo), 
+                  family = poisson(link = "log"), 
+                  data = mtpl)
+summary(fm_pois)
+fm_pois %>% broom::tidy()
 
+
+```
+
+```{r, echo=F}
+se_glm_pois <- summary(fm_pois)$coefficients[,2]
+#AIC(fm_pois)
 ```
 We can see that we get the same values of the estimate, and minimum. 
 
-We can also calculate correspoding standard deviation:
+We can also calculate correspoding standard deviation, which equals to `r se_glm_pois`.
 
-```{r, echo = F}
-sqrt(diag(solve(fit_poi$hessian)))
-```
-
-The value of AIC also stays the same and it is equal to:
-```{r, echo=F}
-
-AIC_poi2 <- 2*length(fit_poi$estimate) + 2*fit_poi$minimum
-AIC_poi2
-
-```
+The value of AIC also stays the same.
 
 We can conclude, that both methods return the same results.
 
@@ -278,7 +273,8 @@ fit2
 ```
 The corresponding standard error equals:
 ```{r, echo = F}
-sqrt(diag(solve(fit2$hessian)))
+se_nlm_nb <- sqrt(diag(solve(fit2$hessian)))
+se_nlm_nb
 ```
 ### 3.2.2 Akaike Information Criterion
 ```{r, echo=F}
@@ -287,31 +283,24 @@ AIC_nb = - 2 * nb.loglik + 2 * 2
 AIC_nb
 ```
 ### 3.2.3 Calculation with the help of Generalized Linear Models (GLMs)
-```{r, echo = F, warning=FALSE}
 
-neg_loglik_nb <- function(par, freq, expo){
-  mu <- expo*exp(par[1])
-  r <- exp(par[2])
-  -sum(dnbinom(freq, size = r, mu = mu, log = TRUE))
-}
-fit_nb <- nlm(neg_loglik_nb, c(1, 1), hessian = TRUE, 
-              freq = mtpl$nclaims, expo = mtpl$expo)
-fit_nb
-##fit_nb$estimate
-#exp(fit_nb$estimate)
-```
-
-We get the same standard deviation as from the numerical calculaton:
 ```{r, echo=F}
-sqrt(diag(solve(fit_nb$hessian))) 
-
+fm_nb <- glm.nb(nclaims ~ 1 + offset(log(expo)), link=log)
+summary(fm_nb)
 ```
 
-The variance estimated by this Negativ Binomial model is:
-```{r, echo = F}
-exp(fit_nb$estimate[1]) + (exp(fit_nb$estimate[1])^2)/(exp(fit_nb$estimate[2]))
+```{r, echo=F}
+se_glm_nb <- summary(fm_nb)$coefficients[,2]
+#se_glm_nb
+#AIC(fm_nb)
 ```
+We can see that we get the same values of the estimate, and minimum. 
 
+We can also calculate correspoding standard deviation, which equals to `r se_glm_nb`.
+
+The value of AIC also stays the same.
+
+We can conclude, that both methods return the same results.
 
 ## 3.3 Zero Inflated Poisson  distirbution
 ### 3.3.1 Numerical calculation
@@ -357,7 +346,8 @@ c(lambda = ZIP.lambda, p = ZIP.p)
 
 The corresponding standard error equals:
 ```{r, echo = F}
-sqrt(diag(solve(fit3$hessian)))
+se_nlm_zip <- sqrt(diag(solve(fit3$hessian)))
+se_nlm_zip
 ```
 
 ### 3.3.2 Akaike Information Criterion
@@ -370,24 +360,27 @@ AIC_zip
 
 ### 3.3.3 Calculation with the help of Generalized Linear Models (GLMs)
 
-```{r, echo=F, warning==FALSE, message=FALSE}
-neg_loglik_ZIP <- function(par, freq, expo){
-  lambda <- expo*exp(par[1])
-  p <- exp(par[2])/(1+exp(par[2]))
-  -sum((freq == 0) * (log(p + (1-p)*dpois(0, lambda, log = FALSE)))) - 
-    sum((freq != 0) * (log((1-p)) + dpois(freq, lambda, log = TRUE)))
-}
-fit_ZIP <- nlm(neg_loglik_ZIP, c(1, 1), hessian = TRUE, 
-              freq = mtpl$nclaims, expo = mtpl$expo)
-fit_ZIP
+```{r, echo=F}
+fm_zip <- zeroinfl(nclaims ~ 1, offset = log(expo), 
+                  dist = "poisson")
+summary(fm_zip)
+
+
 ```
 
-Corresponding standard errors:
 
 ```{r, echo=F}
-fit_ZIP_se <- sqrt(diag(solve(fit_ZIP$hessian)))
-fit_ZIP_se
+se_glm_zip <- c((summary(fm_zip)$coefficients)$count[2], (summary(fm_zip)$coefficients[2])$zero[2])
+#se_glm_zip
+#AIC(fm_zip)
 ```
+We can see that we get the same values of the estimate, and minimum. 
+
+We can also calculate correspoding standard deviation, which equals to `r se_glm_zip`.
+
+The value of AIC also stays the same.
+
+We can conclude, that both methods return the same results.
 
 ## 3.4 Hurdle Poisson distirbution
 ### 3.4.1 Numerical calculation
@@ -428,7 +421,8 @@ c(lambda = Hurdle.lambda, p = Hurdle.p)
 
 The corresponding standard error equals:
 ```{r, echo = F}
-sqrt(diag(solve(fit4$hessian)))
+se_nlm_hurdle <- sqrt(diag(solve(fit4$hessian)))
+se_nlm_hurdle
 ```
 ### 3.4.2 Akaike Information Criterion
 
@@ -440,27 +434,27 @@ AIC_Hurdle
 
 ### 3.4.3 Calculation with the help of Generalized Linear Models (GLMs)
 
-```{r, echo=F, warning=FALSE, message=FALSE}
-#Bodi ponosna, tto funkcijo sem sam napisal pa sem dobil prav, #yeea
+```{r, echo=F}
+fm_hurdle <- hurdle(nclaims ~ 1, offset=(log(expo)), dist= "poisson",
+zero.dist=c("binomial"))
+summary(fm_hurdle)
 
-neg_loglik_HURDLE <- function(par, freq, expo){
-  lambda <- expo*exp(par[1])
-  p <- exp(par[2])/(1+exp(par[2]))
-  -sum((freq == 0) * (log(p ))) - 
-    sum((freq != 0) * (log((1-p)) + dpois(freq, lambda, log = TRUE)-log((1-dpois(0, lambda, log = FALSE)))))
-}
-fit_HURDLE <- nlm(neg_loglik_HURDLE, c(1, 1), hessian = TRUE, 
-              freq = mtpl$nclaims, expo = mtpl$expo)
-fit_HURDLE
 ```
-
-Corresponding standard errors:
 
 ```{r, echo=F}
-fit_HURDLE_se <- sqrt(diag(solve(fit_HURDLE$hessian)))
-fit_HURDLE_se
+se_glm_hurdle <- c(summary(fm_hurdle)$coefficients$count[2], (summary(fm_hurdle)$coefficients[2])$zero[2])
+#se_glm_hurdle
+#AIC(fm_hurdle)
 ```
+We can see that we get the same values of the estimate, and minimum. 
 
+We can also calculate correspoding standard deviation, which equals to `r se_glm_hurdle`.
+
+The value of AIC also stays the same.
+
+We can conclude, that both methods return the same results.
+
+------------------------------------------------------------------------
 Now that we have calculated AIC for all distributions we can compare the values. The best AIC value is the lowest one.
 
 
@@ -476,12 +470,71 @@ We can observe that the lowest AIC value is achieved in the Negative Binomial di
 AIC[which.min(AIC)]
 ```
 
+# 4 Comaring frequency models
 
+We will now compare the frequency models by comparing the expected number of zeros with the actually observed number of zero claims. 
+First we will calculate the actual number of zero claims per contracts in our dataset.
+
+```{r, echo =F}
+#actual number of zero claims in our data:
+actual_zero <- sum(nclaims < 1)
+#actual_zero
+```
+We compute that there is `r actual_zero` insurance contracts, that did not have any claims, out of `r length(nclaims)` contracts.
+
+* Poisson distribution
+
+
+The predicted number of zero claims per contract under Poisson distribution is equal to:
+```{r, echo=F}
+#First we apply fitted and combine with dpois --> number of expected zeros:
+fit_pois_zero <- round(sum(dpois(0, fitted(fm_pois))))
+fit_pois_zero
+difference <- actual_zero - fit_pois_zero
+#difference
+
+diff_percentage <- round(difference/actual_zero *100,2)
+#diff_percentage
+```
+This means that our model returns pretty accurate number of expected zeros. The difference is `r difference` which represents only `r diff_percentage` % deviation.
+
+* Negative Binomial distribution
+The predicted number of zero claims per contract under Negative Binomial distribution is equal to:
+```{r, echo=F}
+theta <- fm_nb$theta  #dispersion parameter
+fit_nb_zero <- round(sum(dnbinom(0, mu=fitted(fm_nb), size=theta)))
+fit_nb_zero
+difference <- abs(actual_zero - fit_nb_zero)
+#difference
+diff_percentage <- round(difference/actual_zero *100,3)
+#diff_percentage
+```
+This means that our model returns very accurate number of expected zeros. The difference is only `r difference` zeros.
+
+*Zero Inflated Poisson distribution
+
+The predicted number of zero claims per contract under ZIP is equal to:
 ```{r, echo=F}
 
+fit_zip_zero <- round(sum(predict(fm_zip, type="prob")[,1]))
+fit_zip_zero
+difference <- abs(actual_zero - fit_zip_zero)
+#difference
+diff_percentage <- round(difference/actual_zero *100,3)
+#diff_percentage
 ```
+This means that our model returns very accurate number of expected zeros. The difference is only `r difference` zeros.
 
+*Hurdle distribution
 
+The predicted number of zero claims per contract under Hurdle distribution is equal to:
 ```{r, echo=F}
 
+fit_hurdle_zero <- round(sum(predict(fm_hurdle, type="prob")[,1]))
+fit_zip_zero
+difference <- abs(actual_zero - fit_hurdle_zero)
+#difference
+diff_percentage <- round(difference/actual_zero *100,3)
+#diff_percentage
 ```
+Which means that our model gives us the same number of expected zeros as there are actual zeros in our dataset.

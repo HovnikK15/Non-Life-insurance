@@ -1,0 +1,48 @@
+---
+title: "Final project - part 2"
+output: html_document
+author: "Klemen Hovnik and Manca Strgar"
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
+#package instalation:
+packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl", "rmarkdown", "ggplot2")
+new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
+
+if(sum(!(packages %in% installed.packages()[, "Package"]))) {
+  stop(paste('The following required packages are not installed:\n', 
+             paste(packages[which(!(packages %in% installed.packages()[, "Package"]))], collapse = ', ')));
+} else {
+  message("Everything is set up correctly. You are ready to go.")
+}
+#libraries:
+library(dplyr)
+library(knitr)
+library(MASS)
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+library(pscl) 
+```
+# 1 Importing dataset
+
+```{r, echo=F}
+#Okolje, kjer pišeš kodo - Ta celotni kvadratek skopiras, ko kaj rabiš
+```
+
+
+
+```{r, echo=F, class.output="bg-warning"}
+#KK SE TI ZDI ČE JE OUTPUT OKVIRČEK TAKE RUMENE BARVE NAMEST BELE? 
+mtpl_orig <- read.delim("SeverityCensoring.txt", header = TRUE, sep = " ")
+mtpl_orig=as_tibble(mtpl_orig)
+str(mtpl_orig)
+#summary(mtpl_orig)
+kable(head(mtpl_orig))
+
+```
