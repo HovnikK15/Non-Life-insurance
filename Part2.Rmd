@@ -4,45 +4,127 @@ output: html_document
 author: "Klemen Hovnik and Manca Strgar"
 ---
 
-```{r setup, include=FALSE, warning=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
-#package instalation:
-packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl", "rmarkdown", "ggplot2")
-new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
-if(length(new_packages)) install.packages(new_packages)
+```{r, echo = F, warning=FALSE}
+Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
 
-if(sum(!(packages %in% installed.packages()[, "Package"]))) {
-  stop(paste('The following required packages are not installed:\n', 
-             paste(packages[which(!(packages %in% installed.packages()[, "Package"]))], collapse = ', ')));
-} else {
-  message("Everything is set up correctly. You are ready to go.")
-}
-#libraries:
-library(dplyr)
-library(knitr)
 library(MASS)
-library(rmarkdown)
-library(tidyverse)
-library(ggplot2)
-library(pscl) 
+
+
+# 1. vprašanje
+Severity$rc <- !is.na(Severity$rc) #we make indicator for right censoring
+
+claimAmount <- Severity$claimAmount
+rc <- Severity$rc
+deductible <- Severity$deductible
+
+#exponential distribution
+
+exp.negloglikelihood <- function(par)
+  {lambda <- exp(par)
+  -sum(dexp(claimAmount[!rc],lambda,log=T)) - #tuki izbere claimAmount če je rc false
+    sum(pexp(claimAmount[rc],lambda,log.p=T,lower.tail=F)) + #izbere claimamount če rc true
+    sum(pexp(deductible,lambda,log.p=T,lower.tail=F))
+}
+
+par.init <- 1/mean(claimAmount)
+fit_exp <- nlm(exp.negloglikelihood,log(par.init))
+par.exp <- exp(fit_exp$estimate) # 0.000469  ##nej greva te končne rezultate napisat zravn v komentar, tut v prvem delu
+AIC.exp <- 2+2*fit_exp$minimum # 127986.6
 ```
-# 1 Importing dataset
 
-```{r, echo=F}
-#Okolje, kjer pišeš kodo - Ta celotni kvadratek skopiras, ko kaj rabiš
+
+```{r, echo = F, warning=FALSE}
+# 2. vprašanje
+install.packages("actuar")
+library(actuar)
+
+#lognormal distribution
+
+lnorm.negloglikelihood <- function(par){
+  mu <- exp(par[1]); 
+  sig <- exp(par[2])
+      -sum(dlnorm(claimAmount[!rc],mu,sig,log=T)) -         
+      sum(plnorm(claimAmount[rc],mu,sig,log.p=T,lower.tail=F)) +
+      sum(plnorm(deductible,mu,sig,log.p=T,lower.tail=F))
+}
+m1 <- mean(claimAmount); m2 <- mean(claimAmount^2)
+par.init <- c(log(m1^2/sqrt(m2)), log(m2/m1^2))
+
+fit_lnorm <- nlm(lnorm.negloglikelihood,log(par.init))
+
+par.lnorm <- exp(fit_lnorm$estimate) # 6.154 1.956
+
+AIC.lnorm <- 4+2*fit_lnorm$minimum # 121207.2
+
+
+
 ```
 
 
+```{r, echo = F, warning=FALSE}
+#inverse Gaussian distribution
 
-```{r, echo=F, class.output="bg-warning"}
-#KK SE TI ZDI ČE JE OUTPUT OKVIRČEK TAKE RUMENE BARVE NAMEST BELE? 
-mtpl_orig <- read.delim("SeverityCensoring.txt", header = TRUE, sep = " ")
-mtpl_orig=as_tibble(mtpl_orig)
-str(mtpl_orig)
-#summary(mtpl_orig)
-kable(head(mtpl_orig))
+invG.negloglikelihood <- function(par){
+  mu <- exp(par[1]);
+  theta <- exp(par[2])
+      - sum(dinvgauss(claimAmount[!rc],mu,theta,log=T)) -         
+      sum(pinvgauss(claimAmount[rc],mu,theta,log.p=T,lower.tail=F)) +
+      sum(pinvgauss(deductible,mu,theta,log.p=T,lower.tail=F))
+}
+m1 <- mean(claimAmount); m2 <- mean(claimAmount^2)
+par.init <- c(m1, m1^3/m2)
 
+fit_invG <- nlm(invG.negloglikelihood,log(par.init))
+
+par.invG <- exp(fit_invG$estimate) #5512 428
+
+AIC.invG <- 4+2*fit_invG$minimum #120651.7
+```
+
+```{r, echo = F, warning=FALSE}
+#burr distribution
+
+neg.loglik.burr <- function(par){
+  s1 <- exp(par[1]); s2 <- exp(par[2]); sc <-exp(par[3])
+  -sum(dburr(claimAmount[!rc],s1,s2,sc,log=T)) - sum(pburr(claimAmount[rc],s1,s2,sc,log.p=T,lower.tail=F)) +
+sum(pburr(deductible,s1,s2,sc,log.p=T,lower.tail=F))
+
+}
+par.init <- c(1,1,1)
+fit_burr<- nlm(neg.loglik.burr,log(par.init))
+par.burr <- exp(fit_burr$estimate) # 0.164 3.632 0.00472
+AIC.burr <- 6+2*fit_burr$minimum # 119870.7
+
+```
+
+
+```{r, echo = F, warning=FALSE}
+#3.vprašanje
+source("EM_MixedErlang.R")
+loss <- claimAmount ; 
+nrc <- claimAmount
+for (i in 1:9062) {
+  if (rc[i] == FALSE){
+    nrc[i] <- NA
+  }
+}
+fit.ME <- ME_fit(loss, nrc, trunclower=100, M=5, s=3)
+
+```
+
+```{r, echo = F, warning=FALSE}
+#4.vprašanje
+
+install.packages("survival")
+library(survival)
+deds <- deductible ; loss <- claimAmount ; full <- rc
+fit <- survfit(Surv(deds, loss, full) ~ 1)
+plot(fit, mark.time=F, conf.int=F)
+```
+
+```{r, echo = F, warning=FALSE}
+#5.vprašanje
+f <- (1-ppexp(claimAmount,par.exp))/(1-ppexp(100, par.exp))
+plot(claimAmount, ppexp(claimAmount, par.exp))
 ```

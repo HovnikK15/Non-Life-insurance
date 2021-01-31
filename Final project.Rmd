@@ -166,7 +166,7 @@ poisson.negLoglikelihood <- function(beta)
 
 Now we will use non-linear minimization function to get the minimum value. The starting value will be set to $\beta = 1$. The function returns the following lines:
 
-- minimum: the value of estimated minimum of our functionž
+- minimum: the value of estimated minimum of our function
 
 - estimate: the point at which that minimum is obtained.
 
