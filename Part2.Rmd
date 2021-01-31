@@ -4,6 +4,31 @@ output: html_document
 author: "Klemen Hovnik and Manca Strgar"
 ---
 
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
+#package instalation:
+packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl", "rmarkdown", "ggplot2")
+new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
+
+if(sum(!(packages %in% installed.packages()[, "Package"]))) {
+  stop(paste('The following required packages are not installed:\n', 
+             paste(packages[which(!(packages %in% installed.packages()[, "Package"]))], collapse = ', ')));
+} else {
+  message("Everything is set up correctly. You are ready to go.")
+}
+#libraries:
+library(dplyr)
+library(knitr)
+library(MASS)
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+library(pscl) 
+```
 
 ```{r, echo = F, warning=FALSE}
 Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
@@ -32,6 +57,7 @@ fit_exp <- nlm(exp.negloglikelihood,log(par.init))
 par.exp <- exp(fit_exp$estimate) # 0.000469  ##nej greva te končne rezultate napisat zravn v komentar, tut v prvem delu
 AIC.exp <- 2+2*fit_exp$minimum # 127986.6
 ```
+
 
 
 ```{r, echo = F, warning=FALSE}
