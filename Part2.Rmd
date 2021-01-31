@@ -175,7 +175,15 @@ fit.ME
 # 4 Plotting the Kaplan-Meier estimate of the survival function
 Here we need to definethree vectors: deds, loss and full and then plot the fit. We do this like this:
 ```{r, warning=FALSE}
-deds <- deductible ; loss <- claimAmount ; full <- rc
+deds <- deductible ; loss <- claimAmount ; 
+full <- rc
+for (i in 1:9062) {
+  if (rc[i] == TRUE){
+    full[i] == FALSE
+  }else{full[i] == TRUE}
+}
+  
+
 fit <- survfit(Surv(deds, loss, full) ~ 1)
 plot(fit, mark.time=F, conf.int=F)
 ```
