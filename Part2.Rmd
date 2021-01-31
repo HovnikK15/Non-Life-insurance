@@ -28,45 +28,58 @@ library(rmarkdown)
 library(tidyverse)
 library(ggplot2)
 library(pscl) 
+library(actuar)
+library(graphics)
+library(survival)
 ```
+# 1 Fitting exponential function
 
+Firs we need to import our data from the file `SeverityCensoring` into R. The file contains 9062 claims, with columns representing policy id, claim id, rc (iz claim is censored - number or uncensored - value NA ), deductible (always 100) and the claim amount.
 ```{r, echo = F, warning=FALSE}
 Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
+```
+Before we start fitting exponential distribution to our data we will modify our rc column, so that it is a logical colum (indicator), where TRUE means the claim is censores and FALSE means that the claim is not censored. This is how we do this:
+```{r, warning=FALSE}
+Severity$rc <- !is.na(Severity$rc) 
+```
 
-library(MASS)
-
-
-# 1. vprašanje
-Severity$rc <- !is.na(Severity$rc) #we make indicator for right censoring
-
+Now we can finally fit exponention distribution to our model.We will compute negative log-likelihood function, taking trucation and censoring into account. We will do this with the help of `dexp` and `pexp` function that represent density and distribution functions of exponential distribution. As our paramether $\lambda > 0$ we use $\lambda = e^{\beta}$  and now it can take all values.   
+```{r, warning=FALSE}
 claimAmount <- Severity$claimAmount
 rc <- Severity$rc
 deductible <- Severity$deductible
 
-#exponential distribution
-
 exp.negloglikelihood <- function(par)
   {lambda <- exp(par)
-  -sum(dexp(claimAmount[!rc],lambda,log=T)) - #tuki izbere claimAmount če je rc false
-    sum(pexp(claimAmount[rc],lambda,log.p=T,lower.tail=F)) + #izbere claimamount če rc true
-    sum(pexp(deductible,lambda,log.p=T,lower.tail=F))
+  -sum(dexp(claimAmount[!rc],lambda,log=T)) - #here we take values of claimAmount if rc false
+    sum(pexp(claimAmount[rc],lambda,log.p=T,lower.tail=F)) + #claimamount if rc true
+    sum(pexp(deductible,lambda,log.p=T,lower.tail=F)) #adds deductible
 }
-
+```
+To get the enitial estimation of our parameter, we use the moment estimation. As we now $$ E(X) = \frac1\lambda $$ and from here we get that $$ \lambda = \frac1{m_1} $$. Where $m_1$ is first moment derived from our data. Now we can fit exponential distribution and we get the MLE estimation of $\lambda$:
+```{r, echo = F, warning=FALSE}
 par.init <- 1/mean(claimAmount)
 fit_exp <- nlm(exp.negloglikelihood,log(par.init))
-par.exp <- exp(fit_exp$estimate) # 0.000469  ##nej greva te končne rezultate napisat zravn v komentar, tut v prvem delu
-AIC.exp <- 2+2*fit_exp$minimum # 127986.6
+par.exp <- exp(fit_exp$estimate) 
+par.exp
+```
+The value of AIC is equal to: 
+```{r, echo = F, warning=FALSE}
+AIC.exp <- 2+2*fit_exp$minimum 
+AIC.exp
 ```
 
 
+# 2 fitting other distributions
+Now for the second pard we need to also fit three other distributions to our data: lognormal, inverse Gaussian and Burr distribution
 
+# 2.1 Fitting lognormal distribution
+We repeat our process from above. But we need different inital estimations for our two parameters $\mu$ and $\sigma^2$. We need to use the first and the second moments:
+$$ E(X) = e^{ \mu + \frac{\sigma^2}{2}} $$
+$$ E(X^2) = e^{2\mu + 2\sigma^2} $$
+We now get first and the second moment from our data and from that our estimations. 
+We fit the model end get our estimates for $\mu$ and $\sigma^2$:
 ```{r, echo = F, warning=FALSE}
-# 2. vprašanje
-install.packages("actuar")
-library(actuar)
-
-#lognormal distribution
-
 lnorm.negloglikelihood <- function(par){
   mu <- exp(par[1]); 
   sig <- exp(par[2])
@@ -79,18 +92,21 @@ par.init <- c(log(m1^2/sqrt(m2)), log(m2/m1^2))
 
 fit_lnorm <- nlm(lnorm.negloglikelihood,log(par.init))
 
-par.lnorm <- exp(fit_lnorm$estimate) # 6.154 1.956
-
+par.lnorm <- exp(fit_lnorm$estimate) 
+par.lnorm
+```
+And AIC for this fit is:
+```{r, echo = F, warning=FALSE}
 AIC.lnorm <- 4+2*fit_lnorm$minimum # 121207.2
-
-
-
+AIC.lnorm
 ```
 
-
+# 2.2 Fitting inverse Gaussian distributio
+Here our first two moments, that are used for the initial estimation, are equal to:
+$$E(X) = \mu $$ 
+$$ E(X^2) = \mu^2 + \frac{\mu^3}{\theta} $$
+Whit this we get our estiamtions for $\mu$ and $\theta$:
 ```{r, echo = F, warning=FALSE}
-#inverse Gaussian distribution
-
 invG.negloglikelihood <- function(par){
   mu <- exp(par[1]);
   theta <- exp(par[2])
@@ -103,54 +119,81 @@ par.init <- c(m1, m1^3/m2)
 
 fit_invG <- nlm(invG.negloglikelihood,log(par.init))
 
-par.invG <- exp(fit_invG$estimate) #5512 428
-
-AIC.invG <- 4+2*fit_invG$minimum #120651.7
+par.invG <- exp(fit_invG$estimate)
+par.invG
 ```
-
+AIC for inverse Gaussian fit is:
 ```{r, echo = F, warning=FALSE}
-#burr distribution
+AIC.invG <- 4+2*fit_invG$minimum #120651.7
+AIC.invG
+```
+# 2.3 Fitting Burr distribution
 
+Here we have three paramethers, so we need first three moments, for initial estimation.
+$$E(X) = \frac{\theta * \Gamma(1+ \frac{1}{\gamma})* \Gamma(\alpha-\frac{1}{\gamma})}{\Gamma(\alpha)} $$ 
+$$E(X^2) = \frac{\theta^2 * \Gamma(1+ \frac{2}{\gamma})* \Gamma(\alpha-\frac{2}{\gamma})}{\Gamma(\alpha)} $$ 
+$$E(X^3) = \frac{\theta^3 * \Gamma(1+ \frac{3}{\gamma})* \Gamma(\alpha-\frac{3}{\gamma})}{\Gamma(\alpha)} $$ 
+Whit this we get our estiamtions for $\alpha$, $\theta$ and $\gamma$:
+```{r, echo = F, warning=FALSE}
 neg.loglik.burr <- function(par){
   s1 <- exp(par[1]); s2 <- exp(par[2]); sc <-exp(par[3])
   -sum(dburr(claimAmount[!rc],s1,s2,sc,log=T)) - sum(pburr(claimAmount[rc],s1,s2,sc,log.p=T,lower.tail=F)) +
 sum(pburr(deductible,s1,s2,sc,log.p=T,lower.tail=F))
-
 }
 par.init <- c(1,1,1)
 fit_burr<- nlm(neg.loglik.burr,log(par.init))
-par.burr <- exp(fit_burr$estimate) # 0.164 3.632 0.00472
-AIC.burr <- 6+2*fit_burr$minimum # 119870.7
-
+par.burr <- exp(fit_burr$estimate)
+par.burr 
+```
+Corresponding AIC is:
+```{r, echo = F, warning=FALSE}
+AIC.burr <- 6+2*fit_burr$minimum 
+AIC.burr
 ```
 
-
-```{r, echo = F, warning=FALSE}
-#3.vprašanje
+# 3 Fitting Erlang mixture distribution
+Here we use the felp of EM algorithm for Erlang mixtures which we source from file `EM_MixedErlang`.
+We need to define loss and nrc vector so that they meet the conditions form the insutructions. This is how we did this:
+```{r, echo = F, warning=FALSE, include=F}
 source("EM_MixedErlang.R")
+```
+```{r, warning=FALSE, message=FALSE}
 loss <- claimAmount ; 
 nrc <- claimAmount
 for (i in 1:9062) {
-  if (rc[i] == FALSE){
+  if (rc[i] == TRUE){
     nrc[i] <- NA
   }
 }
+```
+Here are the MLE estimations for Erlang mixture distribution:
+```{r, echo = F, warning=FALSE}
 fit.ME <- ME_fit(loss, nrc, trunclower=100, M=5, s=3)
-
+fit.ME
 ```
 
-```{r, echo = F, warning=FALSE}
-#4.vprašanje
-
-install.packages("survival")
-library(survival)
+# 4 Plotting the Kaplan-Meier estimate of the survival function
+Here we need to definethree vectors: deds, loss and full and then plot the fit. We do this like this:
+```{r, warning=FALSE}
 deds <- deductible ; loss <- claimAmount ; full <- rc
 fit <- survfit(Surv(deds, loss, full) ~ 1)
 plot(fit, mark.time=F, conf.int=F)
 ```
 
+
+# 5 Plots
+Now we will plot all the survival functions for all the different distributions onto one graph, so that we can sompare them. The graph looks like this.
 ```{r, echo = F, warning=FALSE}
-#5.vprašanje
-f <- (1-ppexp(claimAmount,par.exp))/(1-ppexp(100, par.exp))
-plot(claimAmount, ppexp(claimAmount, par.exp))
+
+x <- claimAmount
+
+plot(fit, mark.time=F, conf.int=F, add=T)
+curve((1-pexp(x,par.exp))/(1-pexp(100, par.exp)), col="red", add=T, ylab ="y") 
+curve((1-plnorm(x,par.lnorm))/(1-plnorm(100, par.lnorm)), col="blue", add=T)
+curve((1-pinvgauss(x,par.invG))/(1-pinvgauss(100, par.invG)), col="orange", add=T)
+curve((1-pburr(x,par.burr[1], par.burr[2], par.burr[3]))/(1-pburr(100, par.burr[1], par.burr[2], par.burr[3])), add=TRUE, col="pink")
+curve((1-ME_cdf(x,fit.ME$theta, fit.ME$shape, fit.ME$alpha))/(1-ME_cdf(100,fit.ME$theta, fit.ME$shape, fit.ME$alpha)), add=TRUE, col = "purple")
+legend(30000, 0.99, legend=c("Kaplan-Meier", "Exponential", "Lognormal", "Inverse Gaussian", "Burr", "Erlang mixture"), col=c("black", "red", "blue", "orange", "pink", "purple"),lty=1, cex=0.8,
+       title="Line types")
+
 ```
