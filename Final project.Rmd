@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
 #package instalation:
-packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl", "rmarkdown", "ggplot2")
+packages <- c("tidyverse", "here", "gridExtra", "grid", "rstudioapi", "MASS", "actuar", "statmod", "ReIns", "pscl", "rmarkdown", "ggplot2", "graphics", "survival")
 new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new_packages)) install.packages(new_packages)
 
@@ -28,27 +28,24 @@ library(rmarkdown)
 library(tidyverse)
 library(ggplot2)
 library(pscl) 
+library(actuar)
+library(graphics)
+library(survival)
 ```
 # 1 Importing dataset
 
-```{r, echo=F}
-#Okolje, kjer pišeš kodo - Ta celotni kvadratek skopiras, ko kaj rabiš
-```
-
 First, we need to import Insurance contract data from the file `NonFleetCo507` into R. The file contains 159.947 contracts with 11 variables. The column `Clm Count` shows how many claims were filed on the contract. This is the loss frequency data that we will use for model fitting. The column `TLength` shows the period of exposure during which the contract was active and the Clm Count was filed. 
+Let's have a look at our dataset:
 
-```{r, echo=F, class.output="bg-warning"}
-#KK SE TI ZDI ČE JE OUTPUT OKVIRČEK TAKE RUMENE BARVE NAMEST BELE? 
+```{r, echo=F}
 mtpl_orig <- read.delim("NonFleetCo507.txt", header = TRUE)
 mtpl_orig=as_tibble(mtpl_orig)
+kable(head(mtpl_orig))
 str(mtpl_orig)
 #summary(mtpl_orig)
-kable(head(mtpl_orig))
-
 ```
-**Tu lahko dodama opis tabele, torej kaj kaj predstavlja, kaj je max, min..
 
-We could rename colums in our dataset to make it easier to work with. We will rename the column `Clm_Count` into `nclaims` as the number of claims, and `TLength` into `expo` as exposure. For easier programming we will also rename `AgeInsued` and `SexInsured` into `age` and `sex`.
+We could rename colums in our dataset to make it easier to work with. We will rename the column `Clm_Count` into `nclaims` as the number of claims, and `TLength` into `expo` as exposure. For easier programming we will also rename `AgeInsued` and `SexInsured` into `age` and `sex`. We will also delete colums which are not important for our analysis rightnow. 
 ```{r, echo=F}
 #We don't need all the colums, so we can make new table which has only imporant colums about #insurance contract
 mtpl <- mtpl_orig%>% dplyr::select(-PrivateCar, -VehCapCubic, -VehCapTonn)
@@ -61,26 +58,26 @@ mtpl <- mtpl %>%
       tolower 
     })
 mtpl <- rename(mtpl, nclaims = clm_count,expo = tlength, sex = sexinsured, age = ageinsured )
-
+kable(head(mtpl))
 ```
 
-# 2 Empirical analysis (1. vprašanje)
+# 2 Empirical analysis
 
-To have a better understanding of our data we can start by plotting number of claims per insurance contract on the graph. We can observe that the number of actual claims represents only a small proportion of all insurance contracts.
+To have a better understanding of our data we can make a graph with number of claims per insurance contract. We can observe that in the majority of cases there is zero claims per contract.
 
 ```{r, echo=F}
-k<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
+graph1<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
               fill = "red", alpha = 0.5) + 
      labs(y = "Abs freq (in exposure)") +
      ggtitle("MTPL - number of claims per contract")
-k
+graph1
 ```
 
 Looking at this in relative terms, we can see that more than 90% of insurance contract did not have any claims. 
 
 ```{r, echo=F}
-g <- ggplot(mtpl, aes(nclaims)) + theme_bw()
-g + geom_bar(aes(y = (..count..)/sum(..count..)), 
+graph2 <- ggplot(mtpl, aes(nclaims)) + theme_bw()
+graph2 + geom_bar(aes(y = (..count..)/sum(..count..)), 
     col = "red", fill = "red", alpha = 0.5) + 
   labs(y = "Relative frequency") +
   ggtitle("MTPL - relative number of claims")
@@ -102,7 +99,7 @@ Because we have different exposures between policyholders, we could take exposur
 ```{r first-risk-calculations-mtpl-2, echo = F, warning=FALSE}
 mean2 <- sum(mtpl$nclaims) / sum(mtpl$expo); 
 var2 <- sum((mtpl$nclaims-mean2*mtpl$expo)^2)/sum(mtpl$expo) 
-mean2
+#mean2
 c(mean = mean2,   variance = var2)
 #mtpl %>% summarize(emp_freq = mean2, variance = var2 )
 ```
@@ -115,17 +112,17 @@ mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 
 # 3 Fitting different distributions to the loss frequency data
 
-We will fit different distribution to the observed claim count data. We will take exposure into account as well and will fit the distribution using Maximum Likelihood Estimation (MLE)
+We will fit different distribution to the observed claim count data. We will take exposure into account as well and will fit the distribution using Maximum Likelihood Estimation (MLE).
 
-## 3.1 Poisson distribution (2. vprašanje)
+## 3.1 Poisson distribution
 
 ### 3.1.1 Numerical calculation
 
 We start by fitting the Poisson distribution to the observed loss frequency data.
 
 
-Since, not all policyholders are insured throughout the whole year (exposure = period of exposure during which the contract was active, is not equal to 1 for all the contracts), we assume that the claim intensity is proportional to the exposure. For Poisson distribution this means that the intensity is equal to $\lambda * expo$. For `expo=1` (contract active for a whole year), the expected number of claims equals to $\lambda.$ For all other contracts, the expected number of claims equals  $\lambda * expo$.
-$N_i \sim Poiss(\lambda * expo)$
+Since, not all policyholders are insured throughout the whole year (exposure = period of exposure during which the contract was active, is not equal to 1 for all the contracts), we assume that the claim intensity is proportional to the exposure. For Poisson distribution this means that the intensity is equal to $\lambda * expo$. For `expo=1` (contract active for a whole year), the expected number of claims equals to $\lambda.$ For all other contracts, the expected number of claims equals  $\lambda * expo$. We denote this with:
+$$N_i \sim Poiss(\lambda * expo)$$
 
 Let denote that $m$ is the number of observations and $n_{i}$ is the observed number of claims for i-th policyholder, then general definition of likelihood is given by:
 $$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda \cdot expo) \cdot \frac{(\lambda \cdot expo)^{n_i}}{n_i!} $$
@@ -150,7 +147,7 @@ poisson.loglikelihood <- function(lambda)
 ```
 In practice, we minimize the negative log-likelihood so that we can use `nlm` (non-linear minimizer) function for finding the minimum.Minimizing the negative log-likelihood is equal to maximizing the log-likelihood.
 
-$$l(\lambda)=\sum_{i = 1}^{m} \lambda \cdot expo - n_i \cdot log(\lambda \cdot expo) + n_i!$$
+$$l(\lambda)=\sum_{i = 1}^{m} \lambda \cdot expo - n_i \cdot log(\lambda \cdot expo) + log(n_i!)$$
 
 Since the parameter $\lambda$ is strickly positive, we will reparametrize the likelihood and optimize for $\beta = log(\lambda)$ which can take values $(-\infty, \infty)$
 
@@ -198,6 +195,7 @@ se_nlm_poiss
 Calculation of Akaike Information Criterion (AIC):
 Let $k$ be the number of estimated parameters in the model and let $L$ be the maximum value of the likelihood function for the model. Then the AIC value of the model is:
 $$AIC = 2k - 2ln(L)$$
+For Poisson distribution AIC equals to:
 ```{r, echo = F}
 poisson.minimum <- poisson.loglikelihood(poisson.lambda)
 AIC_poi = -2 * poisson.minimum + 2 * 1
@@ -209,37 +207,31 @@ AIC_poi
 We will now vertify our solution in the previous section for numerically computed log-likelihood with the `glm` function. We will put focus on the Poisson regression model. Under Poisson assumption in this model, the number of claims is distributed as follows:
 $$N \sim Poiss(\mu),$$ $$\mu = expo \cdot exp(x^`\beta).$$
 
-
+For `glm` function, we will take exposure into account as well. From the box below we can see the `glm` function that we used and the return that it gives. We get that the standrad error equals to 0,0079, AIC equals to 101.670, lambda estimate is -1,86. So we can conclude that both methods give the same results.  
 ```{r, echo=F, warning=FALSE}
 fm_pois <- glm(nclaims ~ 1, offset = log(expo), 
                   family = poisson(link = "log"), 
                   data = mtpl)
 summary(fm_pois)
-fm_pois %>% broom::tidy()
+#fm_pois %>% broom::tidy()
 
 
 ```
 
 ```{r, echo=F}
 se_glm_pois <- summary(fm_pois)$coefficients[,2]
+#se_glm_pois
 #AIC(fm_pois)
 ```
-We can see that we get the same values of the estimate, and minimum. 
-
-We can also calculate correspoding standard deviation, which equals to `r se_glm_pois`.
-
-The value of AIC also stays the same.
-
-We can conclude, that both methods return the same results.
 
 ## 3.2 Negative Binomial distirbution
 ### 3.2.1 Numerical calculation
 
-The pobability function for the negative binomal distribution is:
+The probability function for the negative binomal distribution is as follows:
 $$P(N=k)=\frac{\Gamma(a+k)}{\Gamma(a)k!}(\frac{\mu}{\mu+a})^k(\frac{a}{\mu+a})^a$$
 where $\mu$ is the expected number of claims for a policy holder who is insured for a full year. So for each policy holder we can define $\mu_i = expo\cdot \mu.$
 
-The ??Log function equals:
+The likelihood and loglikelihood function is:
 $$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i)$$
 $$l(\lambda)=\sum_{i = 1}^{m} log(\Gamma(a+k)) - log(\Gamma(a)k!)+k\cdot log(\frac{\mu}{\mu+a})+a\cdot log(\frac{a}{\mu+a}).$$
 
@@ -259,7 +251,9 @@ NB.negativeLoglikelihood <- function(beta)
 }
 ```
 
-We know that $\mu=E(X)$ $a=\frac{\mu^2}{Var(X)-\mu}$
+We know that $\mu=E(X)$ and $a=\frac{\mu^2}{Var(X)-\mu}$.
+
+With the `nlm` function we get the following:
 
 ```{r, echo=F}
 #Starting point:
@@ -271,19 +265,24 @@ fit2 <- nlm(NB.negativeLoglikelihood, log(c(mean, a0)),hessian=TRUE)
 fit2
 
 ```
-The corresponding standard error equals:
+and we can calculate the corresponding standard error for $\mu$ and $a$ which is equal to:
 ```{r, echo = F}
 se_nlm_nb <- sqrt(diag(solve(fit2$hessian)))
 se_nlm_nb
 ```
-### 3.2.2 Akaike Information Criterion
+
+* Akaike Information Criterion
+
+For Negative Binomial distribution AIC equals to:
+
 ```{r, echo=F}
 nb.loglik <- -fit2$minimum
 AIC_nb = - 2 * nb.loglik + 2 * 2
 AIC_nb
 ```
-### 3.2.3 Calculation with the help of Generalized Linear Models (GLMs)
+### 3.2.2 Calculation with the help of Generalized Linear Models (GLMs)
 
+In the box below we can see what `glm` function returns for Negative Binomial distribution:
 ```{r, echo=F}
 fm_nb <- glm.nb(nclaims ~ 1 + offset(log(expo)), link=log)
 summary(fm_nb)
@@ -296,11 +295,7 @@ se_glm_nb <- summary(fm_nb)$coefficients[,2]
 ```
 We can see that we get the same values of the estimate, and minimum. 
 
-We can also calculate correspoding standard deviation, which equals to `r se_glm_nb`.
-
-The value of AIC also stays the same.
-
-We can conclude, that both methods return the same results.
+We can also calculate correspoding standard deviation, which equals to `r se_glm_nb`. Also the value of AIC stays the same. From this we can conclude, that both methods return the same results.
 
 ## 3.3 Zero Inflated Poisson  distirbution
 ### 3.3.1 Numerical calculation
@@ -335,7 +330,7 @@ fit3 <- nlm(ZIP.negativeLoglikelihood, c(0, 0),hessian=TRUE)
 fit3
 ```
 
-
+With `nlm` function we can compute the estimated values for $\lambda$ and $p$.
 
 ```{r, echo=F}
 ZIP.lambda <- exp(fit3$estimate[1])
@@ -344,21 +339,22 @@ c(lambda = ZIP.lambda, p = ZIP.p)
 
 ```
 
-The corresponding standard error equals:
+The corresponding standard error under Zero Inflated distribution for both parameters equals to:
 ```{r, echo = F}
 se_nlm_zip <- sqrt(diag(solve(fit3$hessian)))
 se_nlm_zip
 ```
 
-### 3.3.2 Akaike Information Criterion
+* Akaike Information Criterion
 
+For Zero Inflated Poisson distribution AIC equals to:
 ```{r, echo=F}
 ZIP.loglik <- -fit3$minimum
 AIC_zip = -2 * ZIP.loglik + 2 * 2
 AIC_zip
 ```
 
-### 3.3.3 Calculation with the help of Generalized Linear Models (GLMs)
+### 3.3.2 Calculation with the help of Generalized Linear Models (GLMs)
 
 ```{r, echo=F}
 fm_zip <- zeroinfl(nclaims ~ 1, offset = log(expo), 
@@ -374,13 +370,11 @@ se_glm_zip <- c((summary(fm_zip)$coefficients)$count[2], (summary(fm_zip)$coeffi
 #se_glm_zip
 #AIC(fm_zip)
 ```
-We can see that we get the same values of the estimate, and minimum. 
+We can see that the `glm` function returns the same values of the estimate, and minimum. 
 
-We can also calculate correspoding standard deviation, which equals to `r se_glm_zip`.
+We can also calculate correspoding standard deviation, which equals to `r se_glm_zip`. The value of AIC also stays the same.
 
-The value of AIC also stays the same.
-
-We can conclude, that both methods return the same results.
+so we can conclude, that both methods return the same results.
 
 ## 3.4 Hurdle Poisson distirbution
 ### 3.4.1 Numerical calculation
@@ -412,6 +406,9 @@ Hurdle.negativeLoglikelihood <- function(beta)
 fit4 <- nlm(Hurdle.negativeLoglikelihood, c(0, 0),hessian=TRUE)
 fit4
 ```
+
+With `nlm` function we can compute the estimated values for $\lambda$ and $p$.
+
 ```{r, echo=F}
 Hurdle.lambda <- exp(fit4$estimate[1])
 Hurdle.p <- exp(fit4$estimate[2])/(1+exp(fit4$estimate[2]))
@@ -419,12 +416,15 @@ c(lambda = Hurdle.lambda, p = Hurdle.p)
 
 ```
 
-The corresponding standard error equals:
+The corresponding standard error for both parameters equals:
 ```{r, echo = F}
 se_nlm_hurdle <- sqrt(diag(solve(fit4$hessian)))
 se_nlm_hurdle
 ```
-### 3.4.2 Akaike Information Criterion
+
+* Akaike Information Criterion
+
+For Hurdle Poisson distribution AIC equals to:
 
 ```{r, echo=F}
 Hurdle.loglik <- -fit4$minimum
@@ -432,7 +432,7 @@ AIC_Hurdle = -2 * Hurdle.loglik + 2 * 2
 AIC_Hurdle
 ```
 
-### 3.4.3 Calculation with the help of Generalized Linear Models (GLMs)
+### 3.4.2 Calculation with the help of Generalized Linear Models (GLMs)
 
 ```{r, echo=F}
 fm_hurdle <- hurdle(nclaims ~ 1, offset=(log(expo)), dist= "poisson",
@@ -448,13 +448,11 @@ se_glm_hurdle <- c(summary(fm_hurdle)$coefficients$count[2], (summary(fm_hurdle)
 ```
 We can see that we get the same values of the estimate, and minimum. 
 
-We can also calculate correspoding standard deviation, which equals to `r se_glm_hurdle`.
-
-The value of AIC also stays the same.
+We can also calculate correspoding standard deviation, which equals to `r se_glm_hurdle`. The value of AIC also stays the same.
 
 We can conclude, that both methods return the same results.
 
-------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
 Now that we have calculated AIC for all distributions we can compare the values. The best AIC value is the lowest one.
 
 
@@ -463,11 +461,10 @@ AIC <- round(c("AIC POI"= AIC_poi, "AIC NB"=AIC_nb,"AIC ZIP"= AIC_zip, "AIC HURD
 AIC
 
 ```
-We can observe that the lowest AIC value is achieved in the Negative Binomial distribution, followed by Zero Inflated Poisson. We can also see that Hurdle distribution has by far the worst AIC. 
-**Kaj to pomeni - ne vem
+We can observe that the lowest AIC value is achieved with the Negative Binomial distribution and equals to 101.318, followed by Zero Inflated Poisson. We can also see that Hurdle distribution has by far the worst AIC. 
 
 ```{r, echo=F}
-AIC[which.min(AIC)]
+#AIC[which.min(AIC)]
 ```
 
 # 4 Comaring frequency models
@@ -480,7 +477,7 @@ First we will calculate the actual number of zero claims per contracts in our da
 actual_zero <- sum(nclaims < 1)
 #actual_zero
 ```
-We compute that there is `r actual_zero` insurance contracts, that did not have any claims, out of `r length(nclaims)` contracts.
+We compute that there is `r actual_zero` insurance contracts that did not have any claims, out of `r length(nclaims)` contracts.
 
 * Poisson distribution
 
@@ -511,7 +508,7 @@ diff_percentage <- round(difference/actual_zero *100,3)
 ```
 This means that our model returns very accurate number of expected zeros. The difference is only `r difference` zeros.
 
-*Zero Inflated Poisson distribution
+* Zero Inflated Poisson distribution
 
 The predicted number of zero claims per contract under ZIP is equal to:
 ```{r, echo=F}
@@ -525,7 +522,7 @@ diff_percentage <- round(difference/actual_zero *100,3)
 ```
 This means that our model returns very accurate number of expected zeros. The difference is only `r difference` zeros.
 
-*Hurdle distribution
+* Hurdle distribution
 
 The predicted number of zero claims per contract under Hurdle distribution is equal to:
 ```{r, echo=F}
@@ -538,3 +535,6 @@ diff_percentage <- round(difference/actual_zero *100,3)
 #diff_percentage
 ```
 Which means that our model gives us the same number of expected zeros as there are actual zeros in our dataset.
+
+From accuracy prespective the Hurdle distribution estimates the number of zeros the most accurately, while Poisson distribution returns the biggest (yet very small) deviation.
+

@@ -34,7 +34,7 @@ library(survival)
 ```
 # 1 Fitting exponential function
 
-Firs we need to import our data from the file `SeverityCensoring` into R. The file contains 9062 claims, with columns representing policy id, claim id, rc (iz claim is censored - number or uncensored - value NA ), deductible (always 100) and the claim amount.
+First we need to import our data from the file `SeverityCensoring` into R. The file contains 9062 claims, with columns representing policy id, claim id, rc (iz claim is censored - number or uncensored - value NA ), deductible (always 100) and the claim amount.
 ```{r, echo = F, warning=FALSE}
 Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
 ```
@@ -43,7 +43,7 @@ Before we start fitting exponential distribution to our data we will modify our 
 Severity$rc <- !is.na(Severity$rc) 
 ```
 
-Now we can finally fit exponention distribution to our model.We will compute negative log-likelihood function, taking trucation and censoring into account. We will do this with the help of `dexp` and `pexp` function that represent density and distribution functions of exponential distribution. As our paramether $\lambda > 0$ we use $\lambda = e^{\beta}$  and now it can take all values.   
+Now we can finally fit exponential distribution to our model.We will compute negative log-likelihood function, taking trucation and censoring into account. We will do this with the help of `dexp` and `pexp` function that represent density and distribution functions of exponential distribution. As our paramether $\lambda > 0$ we use $\lambda = e^{\beta}$  and now it can take all values.   
 ```{r, warning=FALSE}
 claimAmount <- Severity$claimAmount
 rc <- Severity$rc
@@ -56,7 +56,7 @@ exp.negloglikelihood <- function(par)
     sum(pexp(deductible,lambda,log.p=T,lower.tail=F)) #adds deductible
 }
 ```
-To get the enitial estimation of our parameter, we use the moment estimation. As we now $$ E(X) = \frac1\lambda $$ and from here we get that $$ \lambda = \frac1{m_1} $$. Where $m_1$ is first moment derived from our data. Now we can fit exponential distribution and we get the MLE estimation of $\lambda$:
+To get the initial estimation of our parameter, we use the moment estimation. As we know $$ E(X) = \frac1\lambda $$ and from here we get that $$ \lambda = \frac1{m_1}. $$ Where $m_1$ is first moment derived from our data. Now we can fit exponential distribution and we get the MLE estimation of $\lambda$:
 ```{r, echo = F, warning=FALSE}
 par.init <- 1/mean(claimAmount)
 fit_exp <- nlm(exp.negloglikelihood,log(par.init))
@@ -73,12 +73,12 @@ AIC.exp
 # 2 fitting other distributions
 Now for the second pard we need to also fit three other distributions to our data: lognormal, inverse Gaussian and Burr distribution
 
-# 2.1 Fitting lognormal distribution
+## 2.1 Fitting lognormal distribution
 We repeat our process from above. But we need different inital estimations for our two parameters $\mu$ and $\sigma^2$. We need to use the first and the second moments:
 $$ E(X) = e^{ \mu + \frac{\sigma^2}{2}} $$
 $$ E(X^2) = e^{2\mu + 2\sigma^2} $$
-We now get first and the second moment from our data and from that our estimations. 
-We fit the model end get our estimates for $\mu$ and $\sigma^2$:
+Now we get first and the second moment from our data and from that our estimations. 
+We fit the model and get our estimates for $\mu$ and $\sigma^2$:
 ```{r, echo = F, warning=FALSE}
 lnorm.negloglikelihood <- function(par){
   mu <- exp(par[1]); 
@@ -101,7 +101,7 @@ AIC.lnorm <- 4+2*fit_lnorm$minimum # 121207.2
 AIC.lnorm
 ```
 
-# 2.2 Fitting inverse Gaussian distributio
+## 2.2 Fitting inverse Gaussian distribution
 Here our first two moments, that are used for the initial estimation, are equal to:
 $$E(X) = \mu $$ 
 $$ E(X^2) = \mu^2 + \frac{\mu^3}{\theta} $$
@@ -127,7 +127,7 @@ AIC for inverse Gaussian fit is:
 AIC.invG <- 4+2*fit_invG$minimum #120651.7
 AIC.invG
 ```
-# 2.3 Fitting Burr distribution
+## 2.3 Fitting Burr distribution
 
 Here we have three paramethers, so we need first three moments, for initial estimation.
 $$E(X) = \frac{\theta * \Gamma(1+ \frac{1}{\gamma})* \Gamma(\alpha-\frac{1}{\gamma})}{\Gamma(\alpha)} $$ 
@@ -173,7 +173,7 @@ fit.ME
 ```
 
 # 4 Plotting the Kaplan-Meier estimate of the survival function
-Here we need to definethree vectors: deds, loss and full and then plot the fit. We do this like this:
+Here we need to define three vectors: deds, loss and full and then plot the fit. We do this like this:
 ```{r, warning=FALSE}
 deds <- deductible ; loss <- claimAmount ; 
 full <- rc
@@ -190,7 +190,8 @@ plot(fit, mark.time=F, conf.int=F)
 
 
 # 5 Plots
-Now we will plot all the survival functions for all the different distributions onto one graph, so that we can sompare them. The graph looks like this.
+Now we will plot all the survival functions for all the different distributions onto one graph, so that we can compare them. The graph looks like this:
+
 ```{r, echo = F, warning=FALSE}
 
 x <- claimAmount
