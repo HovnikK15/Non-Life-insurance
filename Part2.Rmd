@@ -35,8 +35,10 @@ library(survival)
 # 1 Fitting exponential function
 
 First we need to import our data from the file `SeverityCensoring` into R. The file contains 9062 claims, with columns representing policy id, claim id, rc (iz claim is censored - number or uncensored - value NA ), deductible (always 100) and the claim amount.
-```{r, echo = F, warning=FALSE}
+```{r, echo = F,result='asis', warning=FALSE}
 Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
+
+kable(Severity[1:5,])
 ```
 Before we start fitting exponential distribution to our data we will modify our rc column, so that it is a logical colum (indicator), where TRUE means the claim is censores and FALSE means that the claim is not censored. This is how we do this:
 ```{r, warning=FALSE}
@@ -206,3 +208,22 @@ legend(30000, 0.99, legend=c("Kaplan-Meier", "Exponential", "Lognormal", "Invers
        title="Line types")
 
 ```
+The model that seems closest to Kaplan-Meier estimate is the Burr model in our opinion. 
+# 6 Comparison of AIC values
+The Akaike information criterion (AIC) is an estimator of prediction error and thereby relative quality of statistical models for a given set of data. Given a collection of models for the data, AIC estimates the quality of each model, relative to each of the other models. Thus, AIC provides a means for model selection. Given a set of candidate models for the data, the preferred model is the one with the minimum AIC value. 
+So lets again write down AIC values for our models:
+```{r, echo = F,result='asis', warning=FALSE}
+AIC <- matrix(c(fit.ME$AIC, AIC.burr,AIC.invG, AIC.lnorm, AIC.exp), ncol=1, byrow=TRUE)
+colnames(AIC) <- c("AIC")
+rownames(AIC) <- c("Erlang mixture", "Burr","Inverse Gaussian","Lognormal","Exponential")
+AIC <- as.table(AIC)
+
+AIC
+```
+As we can see that the best choice of model is the one with Exlang mixture distribution. The most inappropriate among this models is the one with Exponential distribution , according to the AIC parameter.
+In exercise 5 we thought that the Burr distribution fits best to the Kaplan-Meier estimate, but AIC parameter tells us that Exlang mixture model is the best, so our anwser is not consistent.   
+
+
+
+
+
