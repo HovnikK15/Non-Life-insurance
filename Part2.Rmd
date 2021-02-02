@@ -208,7 +208,9 @@ legend(30000, 0.99, legend=c("Kaplan-Meier", "Exponential", "Lognormal", "Invers
        title="Line types")
 
 ```
+
 The model that seems closest to Kaplan-Meier estimate is the Burr model in our opinion. 
+
 # 6 Comparison of AIC values
 The Akaike information criterion (AIC) is an estimator of prediction error and thereby relative quality of statistical models for a given set of data. Given a collection of models for the data, AIC estimates the quality of each model, relative to each of the other models. Thus, AIC provides a means for model selection. Given a set of candidate models for the data, the preferred model is the one with the minimum AIC value. 
 So lets again write down AIC values for our models:

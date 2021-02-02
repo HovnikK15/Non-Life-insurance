@@ -1,6 +1,6 @@
 ---
-title: "Final project"
-output: html_document
+title: "Risk Modelling in Insurance - Final project"
+output: pdf_document
 author: "Klemen Hovnik and Manca Strgar"
 ---
 
@@ -32,6 +32,9 @@ library(actuar)
 library(graphics)
 library(survival)
 ```
+PART 1
+=======
+
 # 1 Importing dataset
 
 First, we need to import Insurance contract data from the file `NonFleetCo507` into R. The file contains 159.947 contracts with 11 variables. The column `Clm Count` shows how many claims were filed on the contract. This is the loss frequency data that we will use for model fitting. The column `TLength` shows the period of exposure during which the contract was active and the Clm Count was filed. 
@@ -192,7 +195,9 @@ se_nlm_poiss
 
 ### 3.1.2 Akaike Information Criterion
 
-Calculation of Akaike Information Criterion (AIC):
+The Akaike information criterion (AIC) is an estimator of prediction error and  provides relative quality of statistical models for a given set of data. AIC estimates the quality of each model which we can relative compare to each of the other models.The preferred model is the one with the minimum AIC value.
+
+* Calculation of Akaike Information Criterion (AIC):
 Let $k$ be the number of estimated parameters in the model and let $L$ be the maximum value of the likelihood function for the model. Then the AIC value of the model is:
 $$AIC = 2k - 2ln(L)$$
 For Poisson distribution AIC equals to:
@@ -537,4 +542,206 @@ diff_percentage <- round(difference/actual_zero *100,3)
 Which means that our model gives us the same number of expected zeros as there are actual zeros in our dataset.
 
 From accuracy prespective the Hurdle distribution estimates the number of zeros the most accurately, while Poisson distribution returns the biggest (yet very small) deviation.
+__________________________________________________________________________________________________________________________________
 
+PART 2
+=======
+
+# 1 Fitting exponential function
+
+First we need to import our data from the file `SeverityCensoring` into R. The file contains 9062 claims, with columns representing policy id, claim id, rc (iz claim is censored - number or uncensored - value NA ), deductible (always 100) and the claim amount.
+```{r, echo = F,result='asis', warning=FALSE}
+Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
+
+kable(Severity[1:5,])
+```
+Before we start fitting exponential distribution to our data we will modify our rc column, so that it is a logical colum (indicator), where TRUE means the claim is censores and FALSE means that the claim is not censored. This is how we do this:
+```{r, warning=FALSE}
+Severity$rc <- !is.na(Severity$rc) 
+```
+
+Now we can finally fit exponential distribution to our model.We will compute negative log-likelihood function, taking trucation and censoring into account. We will do this with the help of `dexp` and `pexp` function that represent density and distribution functions of exponential distribution. As our paramether $\lambda > 0$ we use $\lambda = e^{\beta}$  and now it can take all values.   
+```{r, warning=FALSE}
+claimAmount <- Severity$claimAmount
+rc <- Severity$rc
+deductible <- Severity$deductible
+
+exp.negloglikelihood <- function(par)
+  {lambda <- exp(par)
+  -sum(dexp(claimAmount[!rc],lambda,log=T)) - #here we take values of claimAmount if rc false
+    sum(pexp(claimAmount[rc],lambda,log.p=T,lower.tail=F)) + #claimamount if rc true
+    sum(pexp(deductible,lambda,log.p=T,lower.tail=F)) #adds deductible
+}
+```
+To get the initial estimation of our parameter, we use the moment estimation. As we know $$ E(X) = \frac1\lambda $$ and from here we get that $$ \lambda = \frac1{m_1}. $$ Where $m_1$ is first moment derived from our data. Now we can fit exponential distribution and we get the MLE estimation of $\lambda$:
+```{r, echo = F, warning=FALSE}
+par.init <- 1/mean(claimAmount)
+fit_exp <- nlm(exp.negloglikelihood,log(par.init))
+par.exp <- exp(fit_exp$estimate) 
+par.exp
+```
+The value of AIC is equal to: 
+```{r, echo = F, warning=FALSE}
+AIC.exp <- 2+2*fit_exp$minimum 
+AIC.exp
+```
+
+
+# 2 Fitting other distributions
+Now for the second pard we need to also fit three other distributions to our data: lognormal, inverse Gaussian and Burr distribution
+
+## 2.1 Fitting lognormal distribution
+We repeat our process from above. But we need different inital estimations for our two parameters $\mu$ and $\sigma^2$. We need to use the first and the second moments:
+$$ E(X) = e^{ \mu + \frac{\sigma^2}{2}} $$
+$$ E(X^2) = e^{2\mu + 2\sigma^2} $$
+Now we get first and the second moment from our data and from that our estimations. 
+We fit the model and get our estimates for $\mu$ and $\sigma^2$:
+```{r, echo = F, warning=FALSE}
+lnorm.negloglikelihood <- function(par){
+  mu <- exp(par[1]); 
+  sig <- exp(par[2])
+      -sum(dlnorm(claimAmount[!rc],mu,sig,log=T)) -         
+      sum(plnorm(claimAmount[rc],mu,sig,log.p=T,lower.tail=F)) +
+      sum(plnorm(deductible,mu,sig,log.p=T,lower.tail=F))
+}
+m1 <- mean(claimAmount); m2 <- mean(claimAmount^2)
+par.init <- c(log(m1^2/sqrt(m2)), log(m2/m1^2))
+
+fit_lnorm <- nlm(lnorm.negloglikelihood,log(par.init))
+
+par.lnorm <- exp(fit_lnorm$estimate) 
+par.lnorm
+```
+And AIC for this fit is:
+```{r, echo = F, warning=FALSE}
+AIC.lnorm <- 4+2*fit_lnorm$minimum # 121207.2
+AIC.lnorm
+```
+
+## 2.2 Fitting inverse Gaussian distribution
+Here our first two moments, that are used for the initial estimation, are equal to:
+$$E(X) = \mu $$ 
+$$ E(X^2) = \mu^2 + \frac{\mu^3}{\theta} $$
+Whit this we get our estiamtions for $\mu$ and $\theta$:
+```{r, echo = F, warning=FALSE}
+invG.negloglikelihood <- function(par){
+  mu <- exp(par[1]);
+  theta <- exp(par[2])
+      - sum(dinvgauss(claimAmount[!rc],mu,theta,log=T)) -         
+      sum(pinvgauss(claimAmount[rc],mu,theta,log.p=T,lower.tail=F)) +
+      sum(pinvgauss(deductible,mu,theta,log.p=T,lower.tail=F))
+}
+m1 <- mean(claimAmount); m2 <- mean(claimAmount^2)
+par.init <- c(m1, m1^3/m2)
+
+fit_invG <- nlm(invG.negloglikelihood,log(par.init))
+
+par.invG <- exp(fit_invG$estimate)
+par.invG
+```
+AIC for inverse Gaussian fit is:
+```{r, echo = F, warning=FALSE}
+AIC.invG <- 4+2*fit_invG$minimum #120651.7
+AIC.invG
+```
+## 2.3 Fitting Burr distribution
+
+Here we have three paramethers, so we need first three moments, for initial estimation.
+$$E(X) = \frac{\theta * \Gamma(1+ \frac{1}{\gamma})* \Gamma(\alpha-\frac{1}{\gamma})}{\Gamma(\alpha)} $$ 
+$$E(X^2) = \frac{\theta^2 * \Gamma(1+ \frac{2}{\gamma})* \Gamma(\alpha-\frac{2}{\gamma})}{\Gamma(\alpha)} $$ 
+$$E(X^3) = \frac{\theta^3 * \Gamma(1+ \frac{3}{\gamma})* \Gamma(\alpha-\frac{3}{\gamma})}{\Gamma(\alpha)} $$ 
+Whit this we get our estiamtions for $\alpha$, $\theta$ and $\gamma$:
+```{r, echo = F, warning=FALSE}
+neg.loglik.burr <- function(par){
+  s1 <- exp(par[1]); s2 <- exp(par[2]); sc <-exp(par[3])
+  -sum(dburr(claimAmount[!rc],s1,s2,sc,log=T)) - sum(pburr(claimAmount[rc],s1,s2,sc,log.p=T,lower.tail=F)) +
+sum(pburr(deductible,s1,s2,sc,log.p=T,lower.tail=F))
+}
+par.init <- c(1,1,1)
+fit_burr<- nlm(neg.loglik.burr,log(par.init))
+par.burr <- exp(fit_burr$estimate)
+par.burr 
+```
+Corresponding AIC is:
+```{r, echo = F, warning=FALSE}
+AIC.burr <- 6+2*fit_burr$minimum 
+AIC.burr
+```
+
+# 3 Fitting Erlang mixture distribution
+Here we use the felp of EM algorithm for Erlang mixtures which we source from file `EM_MixedErlang`.
+We need to define loss and nrc vector so that they meet the conditions form the insutructions. This is how we did this:
+```{r, echo = F, warning=FALSE, include=F}
+source("EM_MixedErlang.R")
+```
+```{r, warning=FALSE, message=FALSE}
+loss <- claimAmount ; 
+nrc <- claimAmount
+for (i in 1:9062) {
+  if (rc[i] == TRUE){
+    nrc[i] <- NA
+  }
+}
+```
+Here are the MLE estimations for Erlang mixture distribution:
+```{r, echo = F, warning=FALSE}
+fit.ME <- ME_fit(loss, nrc, trunclower=100, M=5, s=3)
+fit.ME
+```
+
+# 4 Plotting the Kaplan-Meier estimate of the survival function
+Here we need to define three vectors: deds, loss and full and then plot the fit. We do this like this:
+```{r, warning=FALSE}
+deds <- deductible ; loss <- claimAmount ; 
+full <- rc
+for (i in 1:9062) {
+  if (rc[i] == TRUE){
+    full[i] == FALSE
+  }else{full[i] == TRUE}
+}
+  
+
+fit <- survfit(Surv(deds, loss, full) ~ 1)
+plot(fit, mark.time=F, conf.int=F)
+```
+
+
+# 5 Plots
+Now we will plot all the survival functions for all the different distributions onto one graph, so that we can compare them. The graph looks like this:
+
+```{r, echo = F, warning=FALSE}
+
+x <- claimAmount
+
+plot(fit, mark.time=F, conf.int=F, add=T)
+curve((1-pexp(x,par.exp))/(1-pexp(100, par.exp)), col="red", add=T, ylab ="y") 
+curve((1-plnorm(x,par.lnorm))/(1-plnorm(100, par.lnorm)), col="blue", add=T)
+curve((1-pinvgauss(x,par.invG))/(1-pinvgauss(100, par.invG)), col="orange", add=T)
+curve((1-pburr(x,par.burr[1], par.burr[2], par.burr[3]))/(1-pburr(100, par.burr[1], par.burr[2], par.burr[3])), add=TRUE, col="pink")
+curve((1-ME_cdf(x,fit.ME$theta, fit.ME$shape, fit.ME$alpha))/(1-ME_cdf(100,fit.ME$theta, fit.ME$shape, fit.ME$alpha)), add=TRUE, col = "purple")
+legend(30000, 0.99, legend=c("Kaplan-Meier", "Exponential", "Lognormal", "Inverse Gaussian", "Burr", "Erlang mixture"), col=c("black", "red", "blue", "orange", "pink", "purple"),lty=1, cex=0.8,
+       title="Line types")
+
+```
+
+The model that seems closest to Kaplan-Meier estimate is the Burr model in our opinion. 
+
+# 6 Comparison of AIC values
+The Akaike information criterion (AIC) is an estimator of prediction error and thereby relative quality of statistical models for a given set of data. Given a collection of models for the data, AIC estimates the quality of each model, relative to each of the other models. Thus, AIC provides a means for model selection. Given a set of candidate models for the data, the preferred model is the one with the minimum AIC value. 
+So lets again write down AIC values for our models:
+```{r, echo = F,result='asis', warning=FALSE}
+AIC <- matrix(c(fit.ME$AIC, AIC.burr,AIC.invG, AIC.lnorm, AIC.exp), ncol=1, byrow=TRUE)
+colnames(AIC) <- c("AIC")
+rownames(AIC) <- c("Erlang mixture", "Burr","Inverse Gaussian","Lognormal","Exponential")
+AIC <- as.table(AIC)
+
+AIC
+```
+As we can see that the best choice of model is the one with Exlang mixture distribution. The most inappropriate among this models is the one with Exponential distribution, according to the AIC parameter.
+In exercise 5 we thought that the Burr distribution fits best to the Kaplan-Meier estimate, but AIC parameter tells us that Exlang mixture model is the best, so our anwser is not consistent.   
+
+
+
+
+
+ 
