@@ -1,6 +1,6 @@
 ---
 title: "Risk Modelling in Insurance - Final project"
-output: pdf_document
+output: html_document
 author: "Klemen Hovnik and Manca Strgar"
 ---
 
