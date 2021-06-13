@@ -1,0 +1,835 @@
+---
+title: "Non-Life Insurance - Final project"
+output: html_document
+author: "Klemen Hovnik and Manca Strgar"
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
+#package instalation:
+packages <- c("tidyverse", "mgcv", "evtree", "classInt", "rgdal", "RColorBrewer", "grid", "gridExtra", "visreg", "sf", "tmap", "rgeos", "mapview", "leaflet", "rmarkdown", "ggplot2")
+suppressMessages(packages <- lapply(packages, FUN = function(x) {
+  if (!require(x, character.only = TRUE)) {
+    install.packages(x)
+    library(x, character.only = TRUE)
+  }
+  else {
+  message("Everything is set up correctly. You are ready to go.")
+}
+}))
+
+#libraries:
+library(dplyr)
+library(knitr)
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+library(graphics)
+library(here)
+library(gridExtra)
+library(mgcv)
+library(evtree)
+library(classInt)
+library(rgdal)
+library(RColorBrewer)
+library(grid)
+library(visreg)
+library(sf)
+library(tmap)
+library(rgeos)
+library(mapview)
+library(leaflet)
+
+```
+PART 1
+=======
+
+# 1 Importing dataset
+
+First, we need to import data from the file `Assignment.csv` into R. The file contains 163.657 rows with 16 variables. The column `nbrtotc` shows total number of claims during the period of exposure. 
+Let's have a look at our dataset:
+
+```{r, echo=F}
+mtpl_orig <- read.csv("Assignment.csv", header = TRUE)
+mtpl_orig=as_tibble(mtpl_orig)
+kable(head(mtpl_orig))
+#str(mtpl_orig)
+#summary(mtpl_orig)
+
+```
+
+We could rename colums in our dataset to make it easier to work with. We will rename the column `Clm_Count` into `nclaims` as the number of claims, and `TLength` into `expo` as exposure. For easier programming we will also rename `AgeInsued` and `SexInsured` into `age` and `sex`. We will also delete colums which are not important for our analysis rightnow. 
+```{r, echo=F}
+mtpl <- mtpl_orig %>%
+  # rename all columns 
+  rename_all(function(.name) {
+    .name %>% 
+      # replace all names with the lowercase versions
+      tolower 
+    })
+mtpl <- rename(mtpl, nclaims = nbrtotc, expo = duree,
+               claims = chargtot)
+kable(head(mtpl))
+```
+
+# 2 Empirical analysis
+
+To have a better understanding of our data we can make a graph with number of claims per insurance contract. We can observe that in the majority of cases there is zero claims per contract.
+
+```{r, echo=F}
+mean(mtpl$nclaims)
+sum(mtpl$nclaims)/sum(mtpl$expo)
+mtpl %>% summarize(emp_freq = sum(nclaims) / sum(expo)) 
+```
+Continuing our analysis, we can compute the mean and variance of the number of observed claims. 
+
+```{r, echo = F, warning=FALSE}
+mean1 <- mean(mtpl$nclaims)
+var1 <-  sum((mtpl$nclaims - mean1)^2) /length(mtpl$nclaims)
+c(mean = mean1, variance = var1)
+
+```
+
+```{r, echo=F}
+graph1<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
+              fill = "red", alpha = 0.5) + 
+     labs(y = "Abs frequency (in exposure)") +
+     ggtitle("MTPL - number of claims")
+graph1
+```
+
+Looking at this in relative terms, we can see that more than 90% of insurance contract did not have any claims. 
+
+```{r, echo=F}
+graph2 <- ggplot(mtpl, aes(nclaims)) + theme_bw()
+graph2 + geom_bar(aes(y = (..count..)/sum(..count..)), 
+    col = "red", fill = "red", alpha = 0.5) + 
+  labs(y = "Relative frequency") +
+  ggtitle("MTPL - relative number of claims")
+```
+
+
+
+
+
+Because we have different exposures between policyholders, we could take exposure information `expo` into account as well. Then we can calculate empirical claim frequency, per unit of exposure and variance. 
+
+```{r first-risk-calculations-mtpl-2, echo = F, warning=FALSE}
+mean2 <- sum(mtpl$nclaims) / sum(mtpl$expo); 
+var2 <- sum((mtpl$nclaims-mean2*mtpl$expo)^2)/sum(mtpl$expo) 
+#mean2
+c(mean = mean2,   variance = var2)
+#mtpl %>% summarize(emp_freq = mean2, variance = var2 )
+```
+
+If we do the same for each gender we see that claim frequency is higher for males than females.
+
+```{r, echo = F, warning=FALSE, message=FALSE}
+mtpl %>%  group_by(sexp) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
+
+```
+```{r, echo=F}
+g <- ggplot(mtpl, aes(bm)) + theme_bw()
+g + geom_histogram(binwidth = 1, col = KULbg, fill = KULbg, alpha = .5)
+```
+
+# 3 The construction of a (technical) tariff structure
+```{r, echo=F}
+
+mtpl %>% group_by(ageph) %>% 
+  summarize(emp_freq = sum(nclaims) / sum(expo)) %>% 
+  ggplot(aes(x = ageph, y = emp_freq)) + theme_bw() +
+  geom_point(color = "#003366")
+
+glm.freq1 <- glm(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+summary(glm.freq1)
+
+gam.freq1 <- gam(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+summary(gam.freq1)
+
+gam.freq2 <- gam(nclaims ~ s(ageph), offset = log(expo), data = mtpl, family = poisson(link = "log"))
+summary(gam.freq2)
+
+pred <- predict(gam.freq2, type = "terms", se = TRUE)
+str(pred)
+
+b <- pred$fit[,1]
+l <- pred$fit[,1] - qnorm(0.975) * pred$se.fit[,1]
+u <- pred$fit[,1] + qnorm(0.975) * pred$se.fit[,1]
+x <- mtpl$ageph
+df <- unique(data.frame(x, b, l, u))
+df
+
+
+p <- ggplot(df, aes(x = x))
+p <- p + geom_line(aes(y = b), size = 1, col="#003366")
+p <- p + geom_line(aes(y = l), size = 0.5, linetype = 2, col="#99CCFF")
+p <- p + geom_line(aes(y = u), size = 0.5, linetype = 2, col="#99CCFF")
+p <- p + xlab("ageph") + ylab(expression(hat(f)(ageph))) + theme_bw()
+p
+
+ggplot.gam <- function(model,variable,gam_term,xlabel,ylabel){
+  pred <- predict(model, type = "terms", se = TRUE)
+  col_index <- which(colnames(pred$fit)==gam_term)
+  x <- variable
+  b <- pred$fit[, col_index]
+  l <- pred$fit[, col_index] - qnorm(0.975) * pred$se.fit[, col_index]
+  u <- pred$fit[, col_index] + qnorm(0.975) * pred$se.fit[, col_index]
+  df <- unique(data.frame(x, b, l, u))
+  p <- ggplot(df, aes(x = x))
+  p <- p + geom_line(aes(y = b), size = 1,col="#003366")
+  p <- p + geom_line(aes(y = l), size = 0.5, linetype = 2,col="#99CCFF")
+  p <- p + geom_line(aes(y = u), size = 0.5, linetype = 2,col="#99CCFF")
+  p <- p + xlab(xlabel) + ylab(ylabel) + theme_bw()
+  p
+}
+
+plot.gam.freq.ageph <- ggplot.gam(gam.freq2, mtpl$ageph, "s(ageph)", "ageph", expression(hat(f)(ageph)))
+plot.gam.freq.ageph
+
+
+```
+
+
+
+
+
+
+Od tu naprej še nisem spreminjal
+--------------------------------------------------
+
+# 3 Fitting different distributions to the loss frequency data
+
+We will fit different distribution to the observed claim count data. We will take exposure into account as well and will fit the distribution using Maximum Likelihood Estimation (MLE).
+
+## 3.1 Poisson distribution
+
+### 3.1.1 Numerical calculation
+
+We start by fitting the Poisson distribution to the observed loss frequency data.
+
+
+Since, not all policyholders are insured throughout the whole year (exposure = period of exposure during which the contract was active, is not equal to 1 for all the contracts), we assume that the claim intensity is proportional to the exposure. For Poisson distribution this means that the intensity is equal to $\lambda * expo$. For `expo=1` (contract active for a whole year), the expected number of claims equals to $\lambda.$ For all other contracts, the expected number of claims equals  $\lambda * expo$. We denote this with:
+$$N_i \sim Poiss(\lambda * expo)$$
+
+Let denote that $m$ is the number of observations and $n_{i}$ is the observed number of claims for i-th policyholder, then general definition of likelihood is given by:
+$$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i) =\prod_{i = 1}^{m} exp(-\lambda \cdot expo) \cdot \frac{(\lambda \cdot expo)^{n_i}}{n_i!} $$
+
+$$l(\lambda)=\sum_{i = 1}^{m} -\lambda \cdot expo + n_i \cdot log(\lambda \cdot expo) - log(n_i!)$$
+
+
+We can maximize loglikelihood with respect to $\lambda$. 
+```{r, echo=F}
+expo = mtpl$expo
+nclaims = mtpl$nclaims
+```
+
+```{r, echo = F}
+poisson.loglikelihood <- function(lambda)
+{
+  loglikelihood <- sum(-lambda * expo + nclaims * log(lambda * expo) - lfactorial(nclaims))
+  
+  return(loglikelihood)
+}
+
+```
+In practice, we minimize the negative log-likelihood so that we can use `nlm` (non-linear minimizer) function for finding the minimum.Minimizing the negative log-likelihood is equal to maximizing the log-likelihood.
+
+$$l(\lambda)=\sum_{i = 1}^{m} \lambda \cdot expo - n_i \cdot log(\lambda \cdot expo) + log(n_i!)$$
+
+Since the parameter $\lambda$ is strickly positive, we will reparametrize the likelihood and optimize for $\beta = log(\lambda)$ which can take values $(-\infty, \infty)$
+
+```{r, echo = F}
+
+poisson.negLoglikelihood <- function(beta)
+{
+  lambda = exp(beta)
+  
+  return(-poisson.loglikelihood(lambda))
+}
+```
+
+Now we will use non-linear minimization function to get the minimum value. The starting value will be set to $\beta = 1$. The function returns the following lines:
+
+- minimum: the value of estimated minimum of our function
+
+- estimate: the point at which that minimum is obtained.
+
+- gradient: first derivative at the estimated minimum 
+
+- hessian: second derivative at the estimated minimum
+
+```{r, echo = F, warning=FALSE}
+
+fit <- nlm(poisson.negLoglikelihood, 1, hessian = TRUE)
+fit
+```
+
+From this we can get the estimation of $\lambda$ which is identical to the expected value (empirical claim frequency per unit) that we have calculated before.
+
+```{r, echo = F}
+poisson.lambda <- exp(fit$estimate) 
+poisson.lambda  #estimated value of lambda
+```
+
+In general, the covariance matrix of the maximum likelihood estimators can be estimated by the inverse of this hessian of minus the log-likelihood at the estimated minimum. By taking the square root of these diagonal elements, we obtain the corresponding standard error that equals:
+```{r, echo = F}
+se_nlm_poiss <- sqrt(diag(solve(fit$hessian)))
+se_nlm_poiss
+```
+
+### 3.1.2 Akaike Information Criterion
+
+The Akaike information criterion (AIC) is an estimator of prediction error and  provides relative quality of statistical models for a given set of data. AIC estimates the quality of each model which we can relative compare to each of the other models.The preferred model is the one with the minimum AIC value.
+
+* Calculation of Akaike Information Criterion (AIC):
+Let $k$ be the number of estimated parameters in the model and let $L$ be the maximum value of the likelihood function for the model. Then the AIC value of the model is:
+$$AIC = 2k - 2ln(L)$$
+For Poisson distribution AIC equals to:
+```{r, echo = F}
+poisson.minimum <- poisson.loglikelihood(poisson.lambda)
+AIC_poi = -2 * poisson.minimum + 2 * 1
+AIC_poi
+```
+
+### 3.1.3 Calculation with the help of Generalized Linear Models (GLMs)
+
+We will now vertify our solution in the previous section for numerically computed log-likelihood with the `glm` function. We will put focus on the Poisson regression model. Under Poisson assumption in this model, the number of claims is distributed as follows:
+$$N \sim Poiss(\mu),$$ $$\mu = expo \cdot exp(x^`\beta).$$
+
+For `glm` function, we will take exposure into account as well. From the box below we can see the `glm` function that we used and the return that it gives. We get that the standrad error equals to 0,0079, AIC equals to 101.670, lambda estimate is -1,86. So we can conclude that both methods give the same results.  
+```{r, echo=F, warning=FALSE}
+fm_pois <- glm(nclaims ~ 1, offset = log(expo), 
+                  family = poisson(link = "log"), 
+                  data = mtpl)
+summary(fm_pois)
+#fm_pois %>% broom::tidy()
+
+
+```
+
+```{r, echo=F}
+se_glm_pois <- summary(fm_pois)$coefficients[,2]
+#se_glm_pois
+#AIC(fm_pois)
+```
+
+## 3.2 Negative Binomial distirbution
+### 3.2.1 Numerical calculation
+
+The probability function for the negative binomal distribution is as follows:
+$$P(N=k)=\frac{\Gamma(a+k)}{\Gamma(a)k!}(\frac{\mu}{\mu+a})^k(\frac{a}{\mu+a})^a$$
+where $\mu$ is the expected number of claims for a policy holder who is insured for a full year. So for each policy holder we can define $\mu_i = expo\cdot \mu.$
+
+The likelihood and loglikelihood function is:
+$$L(\lambda)= \prod_{i = 1}^{m} P(N_i = n_i)$$
+$$l(\lambda)=\sum_{i = 1}^{m} log(\Gamma(a+k)) - log(\Gamma(a)k!)+k\cdot log(\frac{\mu}{\mu+a})+a\cdot log(\frac{a}{\mu+a}).$$
+
+```{r, echo=F}
+#From empirical analysis we know that: 
+mu <- sum(mtpl$nclaims) / sum(mtpl$expo)
+var <- sum((mtpl$nclaims-mu*mtpl$expo)^2)/sum(mtpl$expo) 
+
+NB.negativeLoglikelihood <- function(beta)
+{
+  mu <- exp(beta[1])
+  a <- exp(beta[2])
+  
+  loglikelihood <- sum(lgamma(a + nclaims) - lgamma(a) - lfactorial(nclaims) + nclaims * log(mu*expo/(mu*expo + a)) + a * log(a / (mu * expo + a)))
+  
+  return(-loglikelihood)
+}
+```
+
+We know that $\mu=E(X)$ and $a=\frac{\mu^2}{Var(X)-\mu}$.
+
+With the `nlm` function we get the following:
+
+```{r, echo=F}
+#Starting point:
+mean <- mu
+a0 <- mu^2 / (var - mu) 
+# we know that beta[1] = log(mu) and beta[2]=log(a0)
+
+fit2 <- nlm(NB.negativeLoglikelihood, log(c(mean, a0)),hessian=TRUE)
+fit2
+
+```
+and we can calculate the corresponding standard error for $\mu$ and $a$ which is equal to:
+```{r, echo = F}
+se_nlm_nb <- sqrt(diag(solve(fit2$hessian)))
+se_nlm_nb
+```
+
+* Akaike Information Criterion
+
+For Negative Binomial distribution AIC equals to:
+
+```{r, echo=F}
+nb.loglik <- -fit2$minimum
+AIC_nb = - 2 * nb.loglik + 2 * 2
+AIC_nb
+```
+### 3.2.2 Calculation with the help of Generalized Linear Models (GLMs)
+
+In the box below we can see what `glm` function returns for Negative Binomial distribution:
+```{r, echo=F}
+fm_nb <- glm.nb(nclaims ~ 1 + offset(log(expo)), link=log)
+summary(fm_nb)
+```
+
+```{r, echo=F}
+se_glm_nb <- summary(fm_nb)$coefficients[,2]
+#se_glm_nb
+#AIC(fm_nb)
+```
+We can see that we get the same values of the estimate, and minimum. 
+
+We can also calculate correspoding standard deviation, which equals to `r se_glm_nb`. Also the value of AIC stays the same. From this we can conclude, that both methods return the same results.
+
+## 3.3 Zero Inflated Poisson  distirbution
+### 3.3.1 Numerical calculation
+This is a Poisson distribution where the probability of having zero claims is increased by $p$.
+
+$$ P(N^{ZI}=k) =   \left\{
+\begin{array}{ll}
+      p+(1-p) \cdot P(N=0) ; k=0, \\
+      (1-p) \cdot P(N=k) ; k>0 \\
+\end{array} 
+\right.  $$
+where $N$ represents Poisson distribution. 
+The parameter $p$ takes valued in $[0,1]$, so we can transform in to the real line $(-\infty,\infty)$ with logarithm:
+$$logit(p)=log(\frac{p}{1-p})=\beta$$ 
+$$p=\frac{exp(\beta)}{1+exp(\beta)}$$
+```{r, echo = F}
+ZIP.negativeLoglikelihood <- function(beta)
+{
+  lambda <- exp(beta[1])
+  p <- exp(beta[2])/(1+exp(beta[2]))
+  
+  density <- (p + (1-p) * exp(-expo * lambda))^(nclaims == 0) * ((1-p) * exp(-expo * lambda) * (expo *lambda)^nclaims / gamma(nclaims+1))^(nclaims != 0) 
+  
+  loglikelihood <- sum(log(density))
+  
+  return(-loglikelihood)
+}
+```
+
+```{r, echo=F, warning=FALSE}
+fit3 <- nlm(ZIP.negativeLoglikelihood, c(0, 0),hessian=TRUE)
+fit3
+```
+
+With `nlm` function we can compute the estimated values for $\lambda$ and $p$.
+
+```{r, echo=F}
+ZIP.lambda <- exp(fit3$estimate[1])
+ZIP.p <- exp(fit3$estimate[2])/(1+exp(fit3$estimate[2]))
+c(lambda = ZIP.lambda, p = ZIP.p)
+
+```
+
+The corresponding standard error under Zero Inflated distribution for both parameters equals to:
+```{r, echo = F}
+se_nlm_zip <- sqrt(diag(solve(fit3$hessian)))
+se_nlm_zip
+```
+
+* Akaike Information Criterion
+
+For Zero Inflated Poisson distribution AIC equals to:
+```{r, echo=F}
+ZIP.loglik <- -fit3$minimum
+AIC_zip = -2 * ZIP.loglik + 2 * 2
+AIC_zip
+```
+
+### 3.3.2 Calculation with the help of Generalized Linear Models (GLMs)
+
+```{r, echo=F}
+fm_zip <- zeroinfl(nclaims ~ 1, offset = log(expo), 
+                  dist = "poisson")
+summary(fm_zip)
+
+
+```
+
+
+```{r, echo=F}
+se_glm_zip <- c((summary(fm_zip)$coefficients)$count[2], (summary(fm_zip)$coefficients[2])$zero[2])
+#se_glm_zip
+#AIC(fm_zip)
+```
+We can see that the `glm` function returns the same values of the estimate, and minimum. 
+
+We can also calculate correspoding standard deviation, which equals to `r se_glm_zip`. The value of AIC also stays the same.
+
+so we can conclude, that both methods return the same results.
+
+## 3.4 Hurdle Poisson distirbution
+### 3.4.1 Numerical calculation
+In Hurlde Poisson the probability of observing zero claims is set to $p$. The probability of observing $k$ claims equals:
+$$ P(N^{H}=k) =   \left\{
+\begin{array}{ll}
+      p ; k=0, \\
+      (1-p) \cdot \frac{(N=k)}{1-P(N=0)} ; k>0 \\
+\end{array} 
+\right.  $$
+Here the probability $p$ does not depend on the exposure, while intensity $\lambda$ is proportional to exposure as: $\lambda_i=expo\cdot \lambda.$
+
+```{r, echo=F}
+Hurdle.negativeLoglikelihood <- function(beta)
+{
+  lambda <- exp(beta[1])
+  p <- exp(beta[2])/(1+exp(beta[2]))
+  
+  density <- (p)^(nclaims == 0) * ((1-p) * exp(-expo * lambda) / (1-exp(-lambda * expo)) * (expo *lambda)^nclaims / gamma(nclaims+1))^(nclaims != 0) 
+  
+  loglikelihood <- sum(log(density))
+  
+  return(-loglikelihood)
+}
+```
+
+
+```{r, echo=F, warning=FALSE}
+fit4 <- nlm(Hurdle.negativeLoglikelihood, c(0, 0),hessian=TRUE)
+fit4
+```
+
+With `nlm` function we can compute the estimated values for $\lambda$ and $p$.
+
+```{r, echo=F}
+Hurdle.lambda <- exp(fit4$estimate[1])
+Hurdle.p <- exp(fit4$estimate[2])/(1+exp(fit4$estimate[2]))
+c(lambda = Hurdle.lambda, p = Hurdle.p)
+
+```
+
+The corresponding standard error for both parameters equals:
+```{r, echo = F}
+se_nlm_hurdle <- sqrt(diag(solve(fit4$hessian)))
+se_nlm_hurdle
+```
+
+* Akaike Information Criterion
+
+For Hurdle Poisson distribution AIC equals to:
+
+```{r, echo=F}
+Hurdle.loglik <- -fit4$minimum
+AIC_Hurdle = -2 * Hurdle.loglik + 2 * 2
+AIC_Hurdle
+```
+
+### 3.4.2 Calculation with the help of Generalized Linear Models (GLMs)
+
+```{r, echo=F}
+fm_hurdle <- hurdle(nclaims ~ 1, offset=(log(expo)), dist= "poisson",
+zero.dist=c("binomial"))
+summary(fm_hurdle)
+
+```
+
+```{r, echo=F}
+se_glm_hurdle <- c(summary(fm_hurdle)$coefficients$count[2], (summary(fm_hurdle)$coefficients[2])$zero[2])
+#se_glm_hurdle
+#AIC(fm_hurdle)
+```
+We can see that we get the same values of the estimate, and minimum. 
+
+We can also calculate correspoding standard deviation, which equals to `r se_glm_hurdle`. The value of AIC also stays the same.
+
+We can conclude, that both methods return the same results.
+
+---------------------------------------------------------------------------------------------
+Now that we have calculated AIC for all distributions we can compare the values. The best AIC value is the lowest one.
+
+
+```{r, echo=F}
+AIC <- round(c("AIC POI"= AIC_poi, "AIC NB"=AIC_nb,"AIC ZIP"= AIC_zip, "AIC HURDLE"=AIC_Hurdle))
+AIC
+
+```
+We can observe that the lowest AIC value is achieved with the Negative Binomial distribution and equals to 101.318, followed by Zero Inflated Poisson. We can also see that Hurdle distribution has by far the worst AIC. 
+
+```{r, echo=F}
+#AIC[which.min(AIC)]
+```
+
+# 4 Comaring frequency models
+
+We will now compare the frequency models by comparing the expected number of zeros with the actually observed number of zero claims. 
+First we will calculate the actual number of zero claims per contracts in our dataset.
+
+```{r, echo =F}
+#actual number of zero claims in our data:
+actual_zero <- sum(nclaims < 1)
+#actual_zero
+```
+We compute that there is `r actual_zero` insurance contracts that did not have any claims, out of `r length(nclaims)` contracts.
+
+* Poisson distribution
+
+
+The predicted number of zero claims per contract under Poisson distribution is equal to:
+```{r, echo=F}
+#First we apply fitted and combine with dpois --> number of expected zeros:
+fit_pois_zero <- round(sum(dpois(0, fitted(fm_pois))))
+fit_pois_zero
+difference <- actual_zero - fit_pois_zero
+#difference
+
+diff_percentage <- round(difference/actual_zero *100,2)
+#diff_percentage
+```
+This means that our model returns pretty accurate number of expected zeros. The difference is `r difference` which represents only `r diff_percentage` % deviation.
+
+* Negative Binomial distribution
+The predicted number of zero claims per contract under Negative Binomial distribution is equal to:
+```{r, echo=F}
+theta <- fm_nb$theta  #dispersion parameter
+fit_nb_zero <- round(sum(dnbinom(0, mu=fitted(fm_nb), size=theta)))
+fit_nb_zero
+difference <- abs(actual_zero - fit_nb_zero)
+#difference
+diff_percentage <- round(difference/actual_zero *100,3)
+#diff_percentage
+```
+This means that our model returns very accurate number of expected zeros. The difference is only `r difference` zeros.
+
+* Zero Inflated Poisson distribution
+
+The predicted number of zero claims per contract under ZIP is equal to:
+```{r, echo=F}
+
+fit_zip_zero <- round(sum(predict(fm_zip, type="prob")[,1]))
+fit_zip_zero
+difference <- abs(actual_zero - fit_zip_zero)
+#difference
+diff_percentage <- round(difference/actual_zero *100,3)
+#diff_percentage
+```
+This means that our model returns very accurate number of expected zeros. The difference is only `r difference` zeros.
+
+* Hurdle distribution
+
+The predicted number of zero claims per contract under Hurdle distribution is equal to:
+```{r, echo=F}
+
+fit_hurdle_zero <- round(sum(predict(fm_hurdle, type="prob")[,1]))
+fit_zip_zero
+difference <- abs(actual_zero - fit_hurdle_zero)
+#difference
+diff_percentage <- round(difference/actual_zero *100,3)
+#diff_percentage
+```
+Which means that our model gives us the same number of expected zeros as there are actual zeros in our dataset.
+
+From accuracy prespective the Hurdle distribution estimates the number of zeros the most accurately, while Poisson distribution returns the biggest (yet very small) deviation.
+__________________________________________________________________________________________________________________________________
+
+PART 2
+=======
+
+# 1 Fitting exponential function
+
+First we need to import our data from the file `SeverityCensoring` into R. The file contains 9062 claims, with columns representing policy id, claim id, rc (iz claim is censored - number or uncensored - value NA ), deductible (always 100) and the claim amount.
+```{r, echo = F,result='asis', warning=FALSE}
+Severity <- read.table(file = "./SeverityCensoring.txt", header = T, sep = " ")
+
+kable(Severity[1:5,])
+```
+Before we start fitting exponential distribution to our data we will modify our rc column, so that it is a logical colum (indicator), where TRUE means the claim is censores and FALSE means that the claim is not censored. This is how we do this:
+```{r, warning=FALSE}
+Severity$rc <- !is.na(Severity$rc) 
+```
+
+Now we can finally fit exponential distribution to our model.We will compute negative log-likelihood function, taking trucation and censoring into account. We will do this with the help of `dexp` and `pexp` function that represent density and distribution functions of exponential distribution. As our paramether $\lambda > 0$ we use $\lambda = e^{\beta}$  and now it can take all values.   
+```{r, warning=FALSE}
+claimAmount <- Severity$claimAmount
+rc <- Severity$rc
+deductible <- Severity$deductible
+
+exp.negloglikelihood <- function(par)
+  {lambda <- exp(par)
+  -sum(dexp(claimAmount[!rc],lambda,log=T)) - #here we take values of claimAmount if rc false
+    sum(pexp(claimAmount[rc],lambda,log.p=T,lower.tail=F)) + #claimamount if rc true
+    sum(pexp(deductible,lambda,log.p=T,lower.tail=F)) #adds deductible
+}
+```
+To get the initial estimation of our parameter, we use the moment estimation. As we know $$ E(X) = \frac1\lambda $$ and from here we get that $$ \lambda = \frac1{m_1}. $$ Where $m_1$ is first moment derived from our data. Now we can fit exponential distribution and we get the MLE estimation of $\lambda$:
+```{r, echo = F, warning=FALSE}
+par.init <- 1/mean(claimAmount)
+fit_exp <- nlm(exp.negloglikelihood,log(par.init))
+par.exp <- exp(fit_exp$estimate) 
+par.exp
+```
+The value of AIC is equal to: 
+```{r, echo = F, warning=FALSE}
+AIC.exp <- 2+2*fit_exp$minimum 
+AIC.exp
+```
+
+
+# 2 Fitting other distributions
+Now for the second pard we need to also fit three other distributions to our data: lognormal, inverse Gaussian and Burr distribution
+
+## 2.1 Fitting lognormal distribution
+We repeat our process from above. But we need different inital estimations for our two parameters $\mu$ and $\sigma^2$. We need to use the first and the second moments:
+$$ E(X) = e^{ \mu + \frac{\sigma^2}{2}} $$
+$$ E(X^2) = e^{2\mu + 2\sigma^2} $$
+Now we get first and the second moment from our data and from that our estimations. 
+We fit the model and get our estimates for $\mu$ and $\sigma^2$:
+```{r, echo = F, warning=FALSE}
+lnorm.negloglikelihood <- function(par){
+  mu <- exp(par[1]); 
+  sig <- exp(par[2])
+      -sum(dlnorm(claimAmount[!rc],mu,sig,log=T)) -         
+      sum(plnorm(claimAmount[rc],mu,sig,log.p=T,lower.tail=F)) +
+      sum(plnorm(deductible,mu,sig,log.p=T,lower.tail=F))
+}
+m1 <- mean(claimAmount); m2 <- mean(claimAmount^2)
+par.init <- c(log(m1^2/sqrt(m2)), log(m2/m1^2))
+
+fit_lnorm <- nlm(lnorm.negloglikelihood,log(par.init))
+
+par.lnorm <- exp(fit_lnorm$estimate) 
+par.lnorm
+```
+And AIC for this fit is:
+```{r, echo = F, warning=FALSE}
+AIC.lnorm <- 4+2*fit_lnorm$minimum # 121207.2
+AIC.lnorm
+```
+
+## 2.2 Fitting inverse Gaussian distribution
+Here our first two moments, that are used for the initial estimation, are equal to:
+$$E(X) = \mu $$ 
+$$ E(X^2) = \mu^2 + \frac{\mu^3}{\theta} $$
+Whit this we get our estiamtions for $\mu$ and $\theta$:
+```{r, echo = F, warning=FALSE}
+invG.negloglikelihood <- function(par){
+  mu <- exp(par[1]);
+  theta <- exp(par[2])
+      - sum(dinvgauss(claimAmount[!rc],mu,theta,log=T)) -         
+      sum(pinvgauss(claimAmount[rc],mu,theta,log.p=T,lower.tail=F)) +
+      sum(pinvgauss(deductible,mu,theta,log.p=T,lower.tail=F))
+}
+m1 <- mean(claimAmount); m2 <- mean(claimAmount^2)
+par.init <- c(m1, m1^3/m2)
+
+fit_invG <- nlm(invG.negloglikelihood,log(par.init))
+
+par.invG <- exp(fit_invG$estimate)
+par.invG
+```
+AIC for inverse Gaussian fit is:
+```{r, echo = F, warning=FALSE}
+AIC.invG <- 4+2*fit_invG$minimum #120651.7
+AIC.invG
+```
+## 2.3 Fitting Burr distribution
+
+Here we have three paramethers, so we need first three moments, for initial estimation.
+$$E(X) = \frac{\theta * \Gamma(1+ \frac{1}{\gamma})* \Gamma(\alpha-\frac{1}{\gamma})}{\Gamma(\alpha)} $$ 
+$$E(X^2) = \frac{\theta^2 * \Gamma(1+ \frac{2}{\gamma})* \Gamma(\alpha-\frac{2}{\gamma})}{\Gamma(\alpha)} $$ 
+$$E(X^3) = \frac{\theta^3 * \Gamma(1+ \frac{3}{\gamma})* \Gamma(\alpha-\frac{3}{\gamma})}{\Gamma(\alpha)} $$ 
+Whit this we get our estiamtions for $\alpha$, $\theta$ and $\gamma$:
+```{r, echo = F, warning=FALSE}
+neg.loglik.burr <- function(par){
+  s1 <- exp(par[1]); s2 <- exp(par[2]); sc <-exp(par[3])
+  -sum(dburr(claimAmount[!rc],s1,s2,sc,log=T)) - sum(pburr(claimAmount[rc],s1,s2,sc,log.p=T,lower.tail=F)) +
+sum(pburr(deductible,s1,s2,sc,log.p=T,lower.tail=F))
+}
+par.init <- c(1,1,1)
+fit_burr<- nlm(neg.loglik.burr,log(par.init))
+par.burr <- exp(fit_burr$estimate)
+par.burr 
+```
+Corresponding AIC is:
+```{r, echo = F, warning=FALSE}
+AIC.burr <- 6+2*fit_burr$minimum 
+AIC.burr
+```
+
+# 3 Fitting Erlang mixture distribution
+Here we use the felp of EM algorithm for Erlang mixtures which we source from file `EM_MixedErlang`.
+We need to define loss and nrc vector so that they meet the conditions form the insutructions. This is how we did this:
+```{r, echo = F, warning=FALSE, include=F}
+source("EM_MixedErlang.R")
+```
+```{r, warning=FALSE, message=FALSE}
+loss <- claimAmount ; 
+nrc <- claimAmount
+for (i in 1:9062) {
+  if (rc[i] == TRUE){
+    nrc[i] <- NA
+  }
+}
+```
+Here are the MLE estimations for Erlang mixture distribution:
+```{r, echo = F, warning=FALSE}
+fit.ME <- ME_fit(loss, nrc, trunclower=100, M=5, s=3)
+fit.ME
+```
+
+# 4 Plotting the Kaplan-Meier estimate of the survival function
+Here we need to define three vectors: deds, loss and full and then plot the fit. We do this like this:
+```{r, warning=FALSE}
+deds <- deductible ; loss <- claimAmount ; 
+full <- rc
+for (i in 1:9062) {
+  if (rc[i] == TRUE){
+    full[i] == FALSE
+  }else{full[i] == TRUE}
+}
+  
+
+fit <- survfit(Surv(deds, loss, full) ~ 1)
+plot(fit, mark.time=F, conf.int=F)
+```
+
+
+# 5 Plots
+Now we will plot all the survival functions for all the different distributions onto one graph, so that we can compare them. The graph looks like this:
+
+```{r, echo = F, warning=FALSE}
+
+x <- claimAmount
+
+plot(fit, mark.time=F, conf.int=F, add=T)
+curve((1-pexp(x,par.exp))/(1-pexp(100, par.exp)), col="red", add=T, ylab ="y") 
+curve((1-plnorm(x,par.lnorm))/(1-plnorm(100, par.lnorm)), col="blue", add=T)
+curve((1-pinvgauss(x,par.invG))/(1-pinvgauss(100, par.invG)), col="orange", add=T)
+curve((1-pburr(x,par.burr[1], par.burr[2], par.burr[3]))/(1-pburr(100, par.burr[1], par.burr[2], par.burr[3])), add=TRUE, col="pink")
+curve((1-ME_cdf(x,fit.ME$theta, fit.ME$shape, fit.ME$alpha))/(1-ME_cdf(100,fit.ME$theta, fit.ME$shape, fit.ME$alpha)), add=TRUE, col = "purple")
+legend(30000, 0.99, legend=c("Kaplan-Meier", "Exponential", "Lognormal", "Inverse Gaussian", "Burr", "Erlang mixture"), col=c("black", "red", "blue", "orange", "pink", "purple"),lty=1, cex=0.8,
+       title="Line types")
+
+```
+
+The model that seems closest to Kaplan-Meier estimate is the Burr model in our opinion. 
+
+# 6 Comparison of AIC values
+The Akaike information criterion (AIC) is an estimator of prediction error and thereby relative quality of statistical models for a given set of data. Given a collection of models for the data, AIC estimates the quality of each model, relative to each of the other models. Thus, AIC provides a means for model selection. Given a set of candidate models for the data, the preferred model is the one with the minimum AIC value. 
+So lets again write down AIC values for our models:
+```{r, echo = F,result='asis', warning=FALSE}
+AIC <- matrix(c(fit.ME$AIC, AIC.burr,AIC.invG, AIC.lnorm, AIC.exp), ncol=1, byrow=TRUE)
+colnames(AIC) <- c("AIC")
+rownames(AIC) <- c("Erlang mixture", "Burr","Inverse Gaussian","Lognormal","Exponential")
+AIC <- as.table(AIC)
+
+AIC
+```
+As we can see that the best choice of model is the one with Exlang mixture distribution. The most inappropriate among this models is the one with Exponential distribution, according to the AIC parameter.
+In exercise 5 we thought that the Burr distribution fits best to the Kaplan-Meier estimate, but AIC parameter tells us that Exlang mixture model is the best, so our anwser is not consistent.   
+
+
+
+
+
+ 
