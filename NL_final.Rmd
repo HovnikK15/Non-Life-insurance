@@ -61,7 +61,7 @@ kable(head(mtpl_orig))
 
 ```
 
-We could rename colums in our dataset to make it easier to work with. We will rename the column `Clm_Count` into `nclaims` as the number of claims, and `TLength` into `expo` as exposure. For easier programming we will also rename `AgeInsued` and `SexInsured` into `age` and `sex`. We will also delete colums which are not important for our analysis rightnow. 
+We could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We will also delete colums which are not important for our analysis rightnow. 
 ```{r, echo=F}
 mtpl <- mtpl_orig %>%
   # rename all columns 
@@ -70,21 +70,24 @@ mtpl <- mtpl_orig %>%
       # replace all names with the lowercase versions
       tolower 
     })
-mtpl <- rename(mtpl, nclaims = nbrtotc, expo = duree,
-               claims = chargtot)
+mtpl <- rename(mtpl, age= ageph, sex = sexp, nclaims = nbrtotc, expo = duree,
+               amount = chargtot)
 kable(head(mtpl))
 ```
 
 # 2 Empirical analysis
-
-To have a better understanding of our data we can make a graph with number of claims per insurance contract. We can observe that in the majority of cases there is zero claims per contract.
+For the begining of our empirical analysis, we will calculate the empirical claim frequency. Empirical claim frequency rate is the anticipated percentage of insured that will make claims against insurance and the number of claims they will make during a certain period. SO we calculate it as 
+$$emperical\ claim\ frequency = \frac{\sum{number\ of\ claims}}{\sum{exposure}}$$
 
 ```{r, echo=F}
 mean(mtpl$nclaims)
 sum(mtpl$nclaims)/sum(mtpl$expo)
 mtpl %>% summarize(emp_freq = sum(nclaims) / sum(expo)) 
 ```
-Continuing our analysis, we can compute the mean and variance of the number of observed claims. 
+We can see that aour empirical claim frequency is low, so we will not expect a large number of claims.
+
+To have a better understanding of our data we can make a graphic presentation of our data.
+One column in our data represents the number of claims for every individual in our portfolio. This is a very important information for building our model. We can observe that in majority of the cases we have zero claims per policy. We can also compute the mean and variance that will confirm that.
 
 ```{r, echo = F, warning=FALSE}
 mean1 <- mean(mtpl$nclaims)
@@ -92,7 +95,7 @@ var1 <-  sum((mtpl$nclaims - mean1)^2) /length(mtpl$nclaims)
 c(mean = mean1, variance = var1)
 
 ```
-
+We see that mean is really close to zero. But to convince you even more, that the majority of the policies have zero claims, we can show you in a graph. Graph below actually shows us that almost 150,000 of policies have zero claims and the number of policies that have more than zero claims is verry low.
 ```{r, echo=F}
 graph1<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
               fill = "red", alpha = 0.5) + 
@@ -101,7 +104,7 @@ graph1<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red",
 graph1
 ```
 
-Looking at this in relative terms, we can see that more than 90% of insurance contract did not have any claims. 
+Looking at this in relative terms, we can see that more than around 90% of insurance contract did not have any claims. So approximatelly 10 % of all policyholders have one or more claims.
 
 ```{r, echo=F}
 graph2 <- ggplot(mtpl, aes(nclaims)) + theme_bw()
@@ -111,11 +114,7 @@ graph2 + geom_bar(aes(y = (..count..)/sum(..count..)),
   ggtitle("MTPL - relative number of claims")
 ```
 
-
-
-
-
-Because we have different exposures between policyholders, we could take exposure information `expo` into account as well. Then we can calculate empirical claim frequency, per unit of exposure and variance. 
+But the number of claims is not the only information that we have in our data. We can also graphically show relative frequency of exposure (`expo`). We can calculate empirical claim frequency, per unit of exposure and variance. TLE NE VEM LIH TOČNO KAJ ZDEJ TO POMEN
 
 ```{r first-risk-calculations-mtpl-2, echo = F, warning=FALSE}
 mean2 <- sum(mtpl$nclaims) / sum(mtpl$expo); 
@@ -125,16 +124,75 @@ c(mean = mean2,   variance = var2)
 #mtpl %>% summarize(emp_freq = mean2, variance = var2 )
 ```
 
-If we do the same for each gender we see that claim frequency is higher for males than females.
+If we do the same for each gender we see that claim frequency is higher for males than females. ???A NI LIH OBRATNO???
 
 ```{r, echo = F, warning=FALSE, message=FALSE}
 mtpl %>%  group_by(sexp) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 
 ```
+Now we will graphically show side by side relative frequency for our given data.
+
+
 ```{r, echo=F}
-#g <- ggplot(mtpl, aes(bm)) + theme_bw()
-#g + geom_histogram(binwidth = 1, col = KULbg, fill = KULbg, alpha = .5)
+ylab <- "Relative frequency"
+ggplot.bar <- function(DT, variable, xlab){
+  ggplot(data = DT, aes(as.factor(variable)), environment = environment()) + theme_bw() + 
+    geom_bar(aes(y = (..count..)/sum(..count..)), col = "red", fill = "red") + labs(x = xlab, y = ylab)
+}
+ggplot.hist<- function(DT,variable,xlab,binwidth){
+  ggplot(data =DT, aes(variable))+theme_bw()+
+    geom_histogram (aes(y =(..count..)/sum(..count..)), binwidth = binwidth, col ="red", fill ="red", alpha = 0.5)+
+    labs(x=xlab, y=ylab)
+} 
+
+sevirity_plot <- ggplot(data = mtpl, aes(mtpl$amount)) + geom_density(adjust = 3, col = "red", fill = "red") + xlim(0,1e4) + ylab(ylab) + xlab("sevirity") + theme_bw()
+sevirity_plot
+grid.arrange(ggplot.bar(mtpl, mtpl$nclaims, "nclaims"),
+ggplot.hist(mtpl, mtpl$expo, "expo", NULL),
+sevirity_plot,
+ggplot.bar(mtpl, mtpl$coverp, "coverage"),
+ggplot.bar(mtpl, mtpl$fuelc, "fuel"),
+ggplot.bar(mtpl, mtpl$sex, "sex"),
+ggplot.bar(mtpl, mtpl$usec, "use"),
+ggplot.bar(mtpl, mtpl$fleetc, "fleet"),
+ggplot.hist(mtpl, mtpl$age, "age", NULL),
+ggplot.bar(mtpl, mtpl$powerc, "power"),
+ggplot.bar(mtpl, mtpl$agecar, "car age"),
+ggplot.bar(mtpl, mtpl$sportc, "sport car"), ncol =4)
 ```
+Among our data, we have a information about the postal code of Belgium in which the claim happened. We can show this in a map.
+
+```{r, echo = F, warning=FALSE, message=FALSE}
+
+mtpl_pc <- aggregate(mtpl$expo ~ mtpl$codposs, data=mtpl, sum)
+names(mtpl_pc)[names(mtpl_pc) == "mtpl$expo"] <- "EXP"
+names(mtpl_pc)[names(mtpl_pc) == "mtpl$codposs"] <- "PC"
+mtpl_pc$N <- mtpl_pc$EXP
+head(mtpl_pc)
+
+library(rgdal)
+setwd('C://Users/manca/Documents/NL')
+readShapefile = function(){
+  belgium_shape <- readOGR(dsn = path.expand(paste(getwd(), "/Non-Life-insurance", sep = "")), layer = "npc96_region_Project1.shp")
+  belgium_shape <- spTransform(belgium_shape, CRS("+proj=longlat +datum=WGS84"))
+  belgium_shape$id <- row.names(belgium_shape)
+  return(belgium_shape)
+}
+
+belgium_shape <- readShapefile()
+
+
+
+
+library(sf)
+belgium_shape_sf <- st_read('./Non-Life-insurance/npc96_region_Project1.shp', quiet = TRUE)
+belgium_shape_sf <- st_transrofm(belgium_shape_sf, "+proj=longlat +datum=WGS84")
+class(belgium_shape_sf)
+```
+
+
+
+
 
 # 3 The construction of a (technical) tariff structure
 ```{r, echo=F}
