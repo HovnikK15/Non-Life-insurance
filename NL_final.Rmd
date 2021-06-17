@@ -127,7 +127,7 @@ c(mean = mean2,   variance = var2)
 If we do the same for each gender we see that claim frequency is higher for males than females. ???A NI LIH OBRATNO???
 
 ```{r, echo = F, warning=FALSE, message=FALSE}
-mtpl %>%  group_by(sexp) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
+mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 
 ```
 Now we will graphically show side by side relative frequency for our given data.
@@ -213,9 +213,9 @@ ggplot(belgium_shape_sf) +
 # 3 The construction of a (technical) tariff structure
 ```{r, echo=F}
 
-mtpl %>% group_by(ageph) %>% 
+mtpl %>% group_by(age) %>% 
   summarize(emp_freq = sum(nclaims) / sum(expo)) %>% 
-  ggplot(aes(x = ageph, y = emp_freq)) + theme_bw() +
+  ggplot(aes(x = age, y = emp_freq)) + theme_bw() +
   geom_point(color = "#003366")
 
 glm.freq1 <- glm(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
@@ -224,7 +224,7 @@ summary(glm.freq1)
 gam.freq1 <- gam(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
 summary(gam.freq1)
 
-gam.freq2 <- gam(nclaims ~ s(ageph), offset = log(expo), data = mtpl, family = poisson(link = "log"))
+gam.freq2 <- gam(nclaims ~ s(age), offset = log(expo), data = mtpl, family = poisson(link = "log"))
 summary(gam.freq2)
 
 pred <- predict(gam.freq2, type = "terms", se = TRUE)
@@ -233,7 +233,7 @@ str(pred)
 b <- pred$fit[,1]
 l <- pred$fit[,1] - qnorm(0.975) * pred$se.fit[,1]
 u <- pred$fit[,1] + qnorm(0.975) * pred$se.fit[,1]
-x <- mtpl$ageph
+x <- mtpl$age
 df <- unique(data.frame(x, b, l, u))
 df
 
@@ -242,7 +242,7 @@ p <- ggplot(df, aes(x = x))
 p <- p + geom_line(aes(y = b), size = 1, col="#003366")
 p <- p + geom_line(aes(y = l), size = 0.5, linetype = 2, col="#99CCFF")
 p <- p + geom_line(aes(y = u), size = 0.5, linetype = 2, col="#99CCFF")
-p <- p + xlab("ageph") + ylab(expression(hat(f)(ageph))) + theme_bw()
+p <- p + xlab("age") + ylab(expression(hat(f)(age))) + theme_bw()
 p
 
 ggplot.gam <- function(model,variable,gam_term,xlabel,ylabel){
@@ -261,8 +261,8 @@ ggplot.gam <- function(model,variable,gam_term,xlabel,ylabel){
   p
 }
 
-plot.gam.freq.ageph <- ggplot.gam(gam.freq2, mtpl$ageph, "s(ageph)", "ageph", expression(hat(f)(ageph)))
-plot.gam.freq.ageph
+plot.gam.freq.age <- ggplot.gam(gam.freq2, mtpl$age, "s(age)", "age", expression(hat(f)(age)))
+plot.gam.freq.age
 
 
 ```
