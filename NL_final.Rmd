@@ -61,7 +61,7 @@ kable(head(mtpl_orig))
 
 ```
 
-We could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We will also delete colums which are not important for our analysis rightnow. 
+We could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We aslo renamed `chargtot` into `amount`. We will also delete colums which are not important for our analysis rightnow. 
 ```{r, echo=F}
 mtpl <- mtpl_orig %>%
   # rename all columns 
@@ -124,12 +124,19 @@ c(mean = mean2,   variance = var2)
 #mtpl %>% summarize(emp_freq = mean2, variance = var2 )
 ```
 
-If we do the same for each gender we see that claim frequency is higher for males than females. ???A NI LIH OBRATNO???
+We can also group the claims by the gender. In the result below we see that females are in our case more risky, because they have slightly higher mean empirical frequency.
 
 ```{r, echo = F, warning=FALSE, message=FALSE}
-mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
+freq_by_gen <- mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
+freq_by_gen
+```
+We can even show this mean empirical frequency for each gender graphically. 
+```{r, echo = F, warning=FALSE, message=FALSE}
+#ggplot(freq_by_gen, aes(x=sex, y=emp_freq))+
+ # geom_bar(col="red", fill ="red", alpha =0.5) to neki ne dela
 
 ```
+
 Now we will graphically show side by side relative frequency for our given data.
 
 
@@ -146,7 +153,7 @@ ggplot.hist<- function(DT,variable,xlab,binwidth){
 } 
 
 sevirity_plot <- ggplot(data = mtpl, aes(mtpl$amount)) + geom_density(adjust = 3, col = "red", fill = "red") + xlim(0,1e4) + ylab(ylab) + xlab("sevirity") + theme_bw()
-sevirity_plot
+
 grid.arrange(ggplot.bar(mtpl, mtpl$nclaims, "nclaims"),
 ggplot.hist(mtpl, mtpl$expo, "expo", NULL),
 sevirity_plot,
@@ -206,17 +213,45 @@ ggplot(belgium_shape_sf) +
   theme_bw()
 ```
 
+# 3.2 The construction of a (technical) tariff structure (Manca)
+Firs lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariance gender, we will also include the log of exposure as an offset.
+```{r, echo=F}
+freq_glm_1 <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+
+freq_glm_1 %>% broom::tidy()
+freq_glm_1 %>% broom::augment(type.predict = "response")
+
+emp_freq_female <- exp(coef(freq_glm_1)[1])
+emp_freq_male <- exp(coef(freq_glm_1)[1]+coef(freq_glm_1)[2])
+c(emp_freq_female, emp_freq_male)
+```
+If we now look back at the begining of our report, we analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. this is because we constructed the GLM with only one covariance (sex).
+In RStudio we also have a `predict` function that alows us to use our GLM model on new data frames. We can now dafine two new data frames, one being male drivers with exposure 1 and the other being the female drivers with exposure 1. And we can use `predict` function on these two new data frames
+```{r, echo=F}
+male_driver <- data.frame(expo = 1, sex = "male")
+female_driver <- data.frame(expo = 1, sex = "female")
+predict(freq_glm_1, newdata = male_driver, 
+        type = "response")
+```
+Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We will firstly do Gamma GLM. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
+```{r, echo=F}
+mtpl$amount[mtpl$amount == 0] <- NA     
+sev_glm_1 <- glm(amount ~ sex, family = Gamma(link = "log"), data =mtpl)
+sev_glm_1
+sev_glm_1 %>% broom::tidy()
+sev_glm_1 %>% broom::augment(type.predict = "response")
+```
 
 
 
-
-# 3 The construction of a (technical) tariff structure
+# 3.2 The construction of a (technical) tariff structure (Klemen)
 ```{r, echo=F}
 
 mtpl %>% group_by(age) %>% 
   summarize(emp_freq = sum(nclaims) / sum(expo)) %>% 
   ggplot(aes(x = age, y = emp_freq)) + theme_bw() +
-  geom_point(color = "#003366")
+  geom_point(color = "#003366") 
 
 glm.freq1 <- glm(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
 summary(glm.freq1)
