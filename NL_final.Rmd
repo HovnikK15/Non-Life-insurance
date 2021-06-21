@@ -353,11 +353,36 @@ g2456810_1 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age
 g2456810_2 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar, offset = log(expo), data = mtpl, family = poisson(link = "log"))
 g2456810_3 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split, offset = log(expo), data = mtpl, family = poisson(link = "log"))
 g2456810_4 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar, offset = log(expo), data = mtpl, family = poisson(link = "log"))
-anova(g1,g2,g245, g2456_7, g24568_4, g2456810_1, g2456810_2, g2456810_3, g2456810_4)
+g2456810_5 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g2456810_6 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+anova(g1,g2,g245, g2456_7, g24568_4, g2456810_1, g2456810_2, g2456810_3, g2456810_4, g2456810_5, g2456810_6)
+
+#iz vsega tega smo ugotovili, da je za enkrat optimalni model g2456810_6 -> od sedaj naprej gradimo na temu
+
+g2456810_6 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g245681011_1 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g245681011_2 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g245681011_3 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g245681011_4 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g245681011_5 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age + powerc:agecar:split, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+
+anova(g1,g2,g245, g2456_7, g24568_4,g2456810_6, g245681011_1, g245681011_2, g245681011_3, g245681011_4, g245681011_5)
+
+#iz vsega tega smo ugotovili, da je za enkrat optimalni model g245681011_5 -> od sedaj naprej gradimo na temu
+g245681011_5 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age + powerc:agecar:split, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g24568101112_1 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age + powerc:agecar:split + codposs, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g24568101112_2 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age + powerc:agecar:split + codposs + codposs:split, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+g24568101112_3 <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age + powerc:agecar:split + codposs + codposs:split + codposs:split:coverp, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+
+anova(g1,g2,g245, g2456_7, g24568_4,g2456810_6, g245681011_5, g24568101112_1, g24568101112_2, g24568101112_3)
+
 ```
+Final model, that is the best fit for frequency mofrling is the following model
+```{r, echo=F}
+freq_glm <- glm(nclaims ~ age + agecar + agecar:age + fuelc + split +fuelc:age + fuelc:agecar + age:agecar:fuelc  + split:age+ fleetc + fleetc:age + fleetc:split + coverp + coverp:agecar + coverp:split + coverp:age:agecar + coverp:age:fleetc + coverp:agecar:split + powerc + powerc:agecar + powerc:fuelc + powerc:agecar:age + powerc:agecar:split + codposs + codposs:split + codposs:split:coverp, offset = log(expo), data = mtpl, family = poisson(link = "log"))
+summary(freq_glm)
 
-
-
+```
 
 Now lets try some other model than GLM. We can model frequency and sevirity also with GAM.
 ```{r, echo=F}
