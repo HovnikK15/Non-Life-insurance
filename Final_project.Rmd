@@ -132,8 +132,9 @@ mtpl %>%  group_by(sexp) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 
 ```
 ```{r, echo=F}
-g <- ggplot(mtpl, aes(bm)) + theme_bw()
-g + geom_histogram(binwidth = 1, col = KULbg, fill = KULbg, alpha = .5)
+KULbg <- "#116E8A"
+#g <- ggplot(mtpl, aes(bm)) + theme_bw()
+#g + geom_histogram(binwidth = 1, col = KULbg, fill = KULbg, alpha = .5)
 ```
 
 # 3 The construction of a (technical) tariff structure

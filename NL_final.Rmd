@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
 #package instalation:
-packages <- c("tidyverse", "mgcv", "evtree", "classInt", "rgdal", "RColorBrewer", "grid", "gridExtra", "visreg", "sf", "tmap", "rgeos", "mapview", "leaflet", "rmarkdown", "ggplot2")
+packages <- c("tidyverse", "mgcv", "evtree", "classInt", "rgdal", "RColorBrewer", "grid", "gridExtra", "visreg", "sf", "tmap", "rgeos", "mapview", "leaflet", "rmarkdown", "ggplot2", "kableExtra")
 suppressMessages(packages <- lapply(packages, FUN = function(x) {
   if (!require(x, character.only = TRUE)) {
     install.packages(x)
@@ -42,6 +42,8 @@ library(tmap)
 library(rgeos)
 library(mapview)
 library(leaflet)
+library(kableExtra)
+
 
 ```
 PART 1
@@ -131,12 +133,7 @@ We can also group the claims by the gender. In the result below we see that fema
 freq_by_gen <- mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 freq_by_gen
 ```
-We can even show this mean empirical frequency for each gender graphically. 
-```{r, echo = F, warning=FALSE, message=FALSE}
-#ggplot(freq_by_gen, aes(x=sex, y=emp_freq))+
- # geom_bar(col="red", fill ="red", alpha =0.5) to neki ne dela
 
-```
 
 Now we will graphically show side by side relative frequency for our given data.
 
@@ -178,10 +175,8 @@ names(mtpl_pc)[names(mtpl_pc) == "mtpl$codposs"] <- "PC"
 mtpl_pc$N <- mtpl_pc$EXP
 head(mtpl_pc)
 
-library(sf)
-library(kableExtra)
-library(tmap)
-belgium_shape_sf <- st_read('C://Users/manca/Documents/NL/Non-Life-insurance/npc96_region_Project1.shp', quiet = TRUE)
+
+belgium_shape_sf <- st_read('npc96_region_Project1.shp', quiet = TRUE)
 belgium_shape_sf <- st_transform(belgium_shape_sf, "+proj=longlat +datum=WGS84")
 class(belgium_shape_sf)
 belgium_shape_sf %>% as_tibble() %>% select(-geometry) %>% slice(1:3) %>% kable(format="html")
@@ -222,9 +217,9 @@ freq_glm_sex <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "lo
 
 freq_glm_sex %>% broom::tidy()
 freq_glm_sex %>% broom::augment(type.predict = "response")
-
 emp_freq_female <- exp(coef(freq_glm_sex)[1])
-emp_freq_male <- exp(coef(freq_glm_1)[1]+coef(freq_glm_sex)[2])
+emp_freq_male <- exp(coef(freq_glm_sex)[1]+coef(freq_glm_sex)[2])    #TU SEM POPRAVO GLM_1)[1] V GLM_SEX)[1]
+
 c(emp_freq_female, emp_freq_male)
 ```
 If we now look back at the begining of our report, we analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. this is because we constructed the GLM with only one covariance (sex).
@@ -232,9 +227,9 @@ In RStudio we also have a `predict` function that alows us to use our GLM model 
 ```{r, echo=F}
 male_driver <- data.frame(expo = 1, sex = "Male")
 female_driver <- data.frame(expo = 1, sex = "Female")
-c(predict(freq_glm_1, newdata = male_driver, 
+c(predict(freq_glm_sex, newdata = male_driver,    #TU SEM POPRAVO _1 V _SEX
        type = "response"),
-predict(freq_glm_1, newdata = female_driver, 
+predict(freq_glm_sex, newdata = female_driver, 
        type = "response"))
 ```
 Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We will firstly do Gamma GLM. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
@@ -311,7 +306,7 @@ freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fl
                   data = mtpl)
 summary(freq_glm_20) #AIC = 126106 model 18 is a better fit
 ```
-Fitting sevirity model
+Fitting severity model
 ```{r, echo=F}
 sev_glm_1 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
                   data = mtpl)
@@ -340,8 +335,7 @@ summary(sev_glm_8) #AIC = 308091 model 4 is a better fit
 sev_glm_9 <- glm(amount ~ age + sex + age:sex + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
                   data = mtpl)
 summary(sev_glm_9) #AIC = 307978 this model is a better fit
-######sev_glm_11 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
-                  data = mtpl)
+######sev_glm_11 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),data = mtpl)
 summary(freq_glm_11) #AIC = 126143 this model is a better fit
 sev_glm_12 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
@@ -456,6 +450,20 @@ ggplot.gam <- function(model,variable,gam_term,xlabel,ylabel){
 plot.gam.freq.age <- ggplot.gam(gam.freq2, mtpl$age, "s(age)", "age", expression(hat(f)(age)))
 plot.gam.freq.age
 
+
+```
+
+###Model GAM
+
+```{r, echo=f}
+#freq_gam <- gam(nclaims  ~  
+#                  coverage + fuelc + 
+#                  s(age) + s(bm) + 
+#                  s(powerc) + s(long, lat) +
+#                  ti(ageph, power, bs = "tp"), 
+#                offset = log(expo), 
+#                data = mtpl, 
+#                family = poisson(link = "log"))
 
 ```
 
