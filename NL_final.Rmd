@@ -210,7 +210,7 @@ ggplot(belgium_shape_sf) +
 ```
 
 # 3.2 The construction of a (technical) tariff structure (Manca)
-Firs lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariance gender, we will also include the log of exposure as an offset.
+Firs lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariate gender, we will also include the log of exposure as an offset.
 ```{r, echo=F}
 freq_glm_sex <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
@@ -227,14 +227,14 @@ In RStudio we also have a `predict` function that alows us to use our GLM model 
 ```{r, echo=F}
 male_driver <- data.frame(expo = 1, sex = "Male")
 female_driver <- data.frame(expo = 1, sex = "Female")
-c(predict(freq_glm_sex, newdata = male_driver,    #TU SEM POPRAVO _1 V _SEX
+c(predict(freq_glm_sex, newdata = male_driver,    
        type = "response"),
 predict(freq_glm_sex, newdata = female_driver, 
        type = "response"))
 ```
 Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We will firstly do Gamma GLM. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
 ```{r, echo=F}
-mtpl$amount[mtpl$amount == 0] <- NA     
+ 
 sev_glm_1 <- glm(amount ~ sex, offset =log(expo),family = Gamma(link = "log"), data =mtpl)
 sev_glm_1
 sev_glm_1 %>% broom::tidy()
@@ -320,7 +320,12 @@ AIC(freq_glm_19) #AIC = 126104.3 this model is a better fit
 
 freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar + fuelc:coverp, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-AIC(freq_glm_20) #AIC = 126106 model 18 is a better fit
+AIC(freq_glm_20) #AIC = 126106.2 model 19 is a better fit
+
+AIC_freq <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
+for(i in 1:20){
+  AIC_freq[i,] <- c(paste("freq_glm_",i, sep =""), 0 ,round(AIC(get(paste("freq_glm_",i, sep =""))),1) ) 
+}
 ```
 Fitting severity model
 ```{r, echo=F}
@@ -389,6 +394,7 @@ AIC(sev_glm_15) #AIC = 307841.9 this model is a better fit
 sev_glm_16 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs, offset =log(expo), family = Gamma(link = "log"),
                   data = mtpl)
 AIC(sev_glm_16) #AIC = 307828.9 this model is a better fit
+
 sev_glm_17 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs +age:split, offset =log(expo), family = Gamma(link = "log"),
                   data = mtpl)
 AIC(sev_glm_17) #AIC = 307770.4 this model is a better fit
@@ -404,16 +410,27 @@ AIC(sev_glm_19) #AIC = 307690.5 this model is a better fit
 sev_glm_20 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs + codposs:powerc, offset =log(expo), family = Gamma(link = "log"),
                   data = mtpl)
 AIC(sev_glm_20) #AIC = 307626.1 this model is a better fit
+
+AIC_sev <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
+for(i in 1:20){
+  AIC_sev[i,] <- c(paste("sev_glm_",i, sep =""), 0 ,round(AIC(get(paste("sev_glm_",i, sep =""))),1) ) 
+}
+
 ```
 
-
+To get pure premium we need to combine frequency and severity. We need to calculated expected frequency and expected sevirity and then multiply them. This expected frequency and expected sevirity need to be calculated for some risk profiles (ie. some combinations of covariates) that we defined earlier. For each we will use the one with the lowest AIC as it is the best fit. For frequency this is `freq_glm_19` and for severity `sev_glm_20`. Now lets calculated their expected values with function `predict`
 
 ```{r, echo=F}
-
+expected_frequency <- mean(predict(freq_glm_19, newdata = NULL, 
+       type = "response"))
+expected_severity <- mean(predict(sev_glm_20, newdata = NULL, 
+       type = "response"))
+c("Expected frequency" = expected_frequency, "Expected severity" = expected_severity)
 ```
-Final model, that is the best fit for frequency mofrling is the following model
+We see that expected frequency is equal to 0.1239788 and expected sevirty 2527.4901645 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for
 ```{r, echo=F}
-
+pure_premium = expected_frequency * expected_severity
+c("Pure premium" = pure_premium)
 ```
 
 Now lets try some other model than GLM. We can model frequency and sevirity also with GAM.
@@ -490,17 +507,5 @@ plot.gam.freq.age
 
 ```
 
-###Model GAM
 
-```{r, echo=f}
-#freq_gam <- gam(nclaims  ~  
-#                  coverage + fuelc + 
-#                  s(age) + s(bm) + 
-#                  s(powerc) + s(long, lat) +
-#                  ti(ageph, power, bs = "tp"), 
-#                offset = log(expo), 
-#                data = mtpl, 
-#                family = poisson(link = "log"))
-
-```
 
