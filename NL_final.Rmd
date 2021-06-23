@@ -244,67 +244,83 @@ Zdej bom nardila neki modelou in potem bom z AIC jim primerjala in videla ker je
 ```{r, echo=F}
 freq_glm_1 <- glm(nclaims ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_1) #AIC = 126166
+AIC(freq_glm_1) #AIC = 126165.7
+
 freq_glm_2 <- glm(nclaims ~ age + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_2) #AIC = 126168 model 1 is a better fit
+AIC(freq_glm_2) #AIC = 126168.5 model 1 is a better fit
+
 freq_glm_3 <- glm(nclaims ~ age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_3) #AIC = 126165 this model is a better fit
+AIC(freq_glm_3) #AIC = 1126164.5 this model is a better fit
+
 freq_glm_4 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_4) #AIC = 126144 this model is a better fit
+AIC(freq_glm_4) #AIC = 126144.1 this model is a better fit
+
 freq_glm_5<- glm(nclaims ~ age + sex + age:sex + age:powerc + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_5) #AIC = 126146 model 4 is  a better fit
+AIC(freq_glm_5) #AIC = 126145.7 model 4 is  a better fit
+
 freq_glm_6 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_6) #AIC = 126145 model 4 is  a better fit
+AIC(freq_glm_6) #AIC = 126145 model 4 is  a better fit
+
 freq_glm_7 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + sportc + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_7) #AIC = 126225 model 4 is  a better fit
+AIC(freq_glm_7) #AIC = 126225.2 model 4 is  a better fit
+
 freq_glm_8 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_8) #AIC = 126244 model 4 is a better fit
+AIC(freq_glm_8) #AIC = 126243.5 model 4 is a better fit
+
 freq_glm_9 <- glm(nclaims ~ age + sex + age:sex + codposs + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_9) #AIC = 126196 model 4 is a better fit
+AIC(freq_glm_9) #AIC = 126196.3 model 4 is a better fit
+
 freq_glm_10 <- glm(nclaims ~ age + sex + age:sex + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_10) #AIC = 126247 model 4 is a better fit
+AIC(freq_glm_10) #AIC = 126247.4 model 4 is a better fit
+
 freq_glm_11 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_11) #AIC = 126143 this model is a better fit
+AIC(freq_glm_11) #AIC = 126143.1 this model is a better fit
+
 freq_glm_12 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_12) #AIC = 126172 model 11 is a better fit
+AIC(freq_glm_12) #AIC = 126172.3 model 11 is a better fit
+
 freq_glm_13 <- glm(nclaims ~ age + sex + age:sex, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_12) #AIC =  126873 model 11 is a better fit
-freq_glm_13 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_13) #AIC =  126873.1 model 11 is a better fit
+
+freq_glm_14 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_13) #AIC = 126494 model 11 is a better fit
-freq_glm_14 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_14) #AIC = 126494.5 model 11 is a better fit
+
+freq_glm_15 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_14) #AIC = 126133 this model is a better fit
-freq_glm_15 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + sex:powerc, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_15) #AIC = 126132.7 this model is a better fit
+
+freq_glm_16 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + sex:powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_15) #AIC = 126131 this model is a better fit
-freq_glm_16 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + age:sex+ sex:powerc + age:codposs, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_16) #AIC = 126131.2 this model is a better fit
+
+freq_glm_17 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + age:sex+ sex:powerc + age:codposs, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_16) #AIC = 126133 model 15 is a better fit
-freq_glm_17 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_17) #AIC = 126132.9 model 16 is a better fit
+
+freq_glm_18 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_17) #AIC = 126109 this model is a better fit
-freq_glm_18 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_18) #AIC = 126108.6 this model is a better fit
+
+freq_glm_19 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_18) #AIC = 126104 this model is a better fit
-freq_glm_19 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar + fuelc:coverp, offset =log(expo), family =poisson(link = "log"),
+AIC(freq_glm_19) #AIC = 126104.3 this model is a better fit
+
+freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar + fuelc:coverp, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
-summary(freq_glm_19) #AIC = 126106 model 18 is a better fit
-freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar+ codposs:powerc, offset =log(expo), family =poisson(link = "log"),
-                  data = mtpl)
-summary(freq_glm_20) #AIC = 126106 model 18 is a better fit
+AIC(freq_glm_20) #AIC = 126106 model 18 is a better fit
 ```
 Fitting severity model
 ```{r, echo=F}
