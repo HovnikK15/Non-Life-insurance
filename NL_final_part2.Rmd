@@ -1,0 +1,253 @@
+---
+title: "Non-Life Insurance - Final project"
+output: html_document
+author: "Klemen Hovnik and Manca Strgar"
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
+#package instalation:
+packages <- c("tidyverse", "mgcv", "evtree", "classInt", "rgdal", "RColorBrewer", "grid", "gridExtra", "visreg", "sf", "tmap", "rgeos", "mapview", "leaflet", "rmarkdown", "ggplot2", "kableExtra")
+suppressMessages(packages <- lapply(packages, FUN = function(x) {
+  if (!require(x, character.only = TRUE)) {
+    install.packages(x)
+    library(x, character.only = TRUE)
+  }
+  else {
+  message("Everything is set up correctly. You are ready to go.")
+}
+}))
+
+#libraries:
+library(dplyr)
+library(knitr)
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+library(graphics)
+library(here)
+library(gridExtra)
+library(mgcv)
+library(evtree)
+library(classInt)
+library(rgdal)
+library(RColorBrewer)
+library(grid)
+library(visreg)
+library(sf)
+library(tmap)
+library(rgeos)
+library(mapview)
+library(leaflet)
+library(kableExtra)
+
+
+```
+PART 1
+=======
+
+# 1 Importing dataset
+
+First, we need to import data from the file `Assignment.csv` into R. The file contains 163.657 rows with 16 variables. The column `nbrtotc` shows total number of claims during the period of exposure. 
+Let's have a look at our dataset:
+
+```{r, echo=F}
+mtpl_orig <- read.csv("Assignment.csv", header = TRUE)
+mtpl_orig=as_tibble(mtpl_orig)
+#kable(head(mtpl_orig))
+#str(mtpl_orig)
+#summary(mtpl_orig)
+
+```
+
+We could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We aslo renamed `chargtot` into `amount`. We will also delete colums which are not important for our analysis rightnow. 
+```{r, echo=F}
+mtpl <- mtpl_orig %>%
+  # rename all columns 
+  rename_all(function(.name) {
+    .name %>% 
+      # replace all names with the lowercase versions
+      tolower 
+    })
+mtpl <- rename(mtpl, age= ageph, sex = sexp, nclaims = nbrtotc, expo = duree,
+               amount = chargtot)
+mtpl$amount[mtpl$amount == 0] <- NA 
+#kable(head(mtpl))
+```
+
+
+# 3.2 The construction of a (technical) tariff structure (Manca)
+Firs lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariance gender, we will also include the log of exposure as an offset.
+```{r, echo=F}
+freq_glm_sex <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+
+freq_glm_sex %>% broom::tidy()
+freq_glm_sex %>% broom::augment(type.predict = "response")
+emp_freq_female <- exp(coef(freq_glm_sex)[1])
+emp_freq_male <- exp(coef(freq_glm_sex)[1]+coef(freq_glm_sex)[2])    #TU SEM POPRAVO GLM_1)[1] V GLM_SEX)[1]
+
+c(emp_freq_female, emp_freq_male)
+```
+If we now look back at the begining of our report, we analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. this is because we constructed the GLM with only one covariance (sex).
+In RStudio we also have a `predict` function that alows us to use our GLM model on new data frames. We can now dafine two new data frames, one being male drivers with exposure 1 and the other being the female drivers with exposure 1. And we can use `predict` function on these two new data frames
+```{r, echo=F}
+male_driver <- data.frame(expo = 1, sex = "Male")
+female_driver <- data.frame(expo = 1, sex = "Female")
+c(predict(freq_glm_sex, newdata = male_driver,    #TU SEM POPRAVO _1 V _SEX
+       type = "response"),
+predict(freq_glm_sex, newdata = female_driver, 
+       type = "response"))
+```
+Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We will firstly do Gamma GLM. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
+```{r, echo=F}
+mtpl$amount[mtpl$amount == 0] <- NA     
+sev_glm_1 <- glm(amount ~ sex, offset =log(expo),family = Gamma(link = "log"), data =mtpl)
+sev_glm_1
+sev_glm_1 %>% broom::tidy()
+sev_glm_1 %>% broom::augment(type.predict = "response")
+```
+Zdej bom nardila neki modelou in potem bom z AIC jim primerjala in videla ker je najboljši (opiši postopek kako to narediš)
+
+
+
+
+
+```{r, echo=F}
+
+```
+Final model, that is the best fit for frequency mofrling is the following model
+```{r, echo=F}
+
+```
+
+Now lets try some other model than GLM. We can model frequency and sevirity also with Generalized Additive Models (GAM).These models are exactly like the formula for a GLM except that smooth term, `s`,  can be added to the right hand side to specify that the linear predictor depends on smooth functions of predictors (or linear functionals of these).
+```{r, echo=F}
+
+
+freq_gam_age <- gam(nclaims ~ s(age, bs ="cr"),   #s = cr, denotes cubic regression splines
+                  method = "REML",
+                  family = poisson(link = "log"), 
+                  data =mtpl)
+
+
+freq_gam_1
+
+
+freq_gam_sex <- gam(nclaims ~ sex, method = "REML", family = poisson(link = "log"), 
+                  data =mtpl)
+#AIC(freq_gam_sex)
+
+
+#manca:
+
+
+freq_gam_sex %>% broom::augment(type.predict = "response")
+emp_freq_female_gam <- exp(coef(freq_gam_sex)[1])
+emp_freq_male_gam <- exp(coef(freq_gam_sex)[1]+coef(freq_gam_sex)[2])   
+
+c(emp_freq_female_gam, emp_freq_male_gam)
+
+
+
+mtpl$amount[mtpl$amount == 0] <- NA     
+sev_gam_1 <- gam(amount ~ sex, method = "REML", family = Gamma(link = "log"), data =mtpl)
+#AIC(sev_glm_1) #309561
+#AIC(sev_gam_1) #303662
+
+sev_gam_1 %>% broom::augment(type.predict = "response")
+```
+```{r, echo=F}
+freq_gam_1 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, method = "REML", family =poisson(link = "log"),data = mtpl)
+AIC(freq_gam_1) #AIC = 126317
+
+freq_gam_2 <- gam(nclaims ~ s(age) + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, method = "REML", family =poisson(link = "log"),data = mtpl)
+AIC(freq_gam_2) #AIC = 126318.87  model 1 is a better fit
+
+freq_gam_3 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split +  fleetc + sportc + coverp + powerc, method = "REML", family =poisson(link = "log"),data = mtpl)
+AIC(freq_gam_3) #AIC = 126316.1 this model is a better fit
+
+
+---------------------------------------------
+
+freq_gam_1 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, method = "REML", family =poisson(link = "log"),data = mtpl)
+AIC(freq_gam_1) #AIC = 126317
+
+freq_glm_4 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_4) #AIC = 126144 this model is a better fit
+
+freq_gam_1 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, method = "REML", family =poisson(link = "log"),data = mtpl)
+AIC(freq_gam_1) #AIC = 126317
+
+freq_glm_5<- glm(nclaims ~ age + sex + age:sex + age:powerc + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_5) #AIC = 126146 model 4 is  a better fit
+freq_glm_6 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_6) #AIC = 126145 model 4 is  a better fit
+
+freq_gam_1 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, method = "REML", family =poisson(link = "log"),data = mtpl)
+AIC(freq_gam_1) #AIC = 126317
+
+freq_glm_7 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + sportc + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_7) #AIC = 126225 model 4 is  a better fit
+freq_glm_8 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_8) #AIC = 126244 model 4 is a better fit
+freq_glm_9 <- glm(nclaims ~ age + sex + age:sex + codposs + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_9) #AIC = 126196 model 4 is a better fit
+freq_glm_10 <- glm(nclaims ~ age + sex + age:sex + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_10) #AIC = 126247 model 4 is a better fit
+freq_glm_11 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_11) #AIC = 126143 this model is a better fit
+freq_glm_12 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_12) #AIC = 126172 model 11 is a better fit
+freq_glm_13 <- glm(nclaims ~ age + sex + age:sex, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_12) #AIC =  126873 model 11 is a better fit
+freq_glm_13 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_13) #AIC = 126494 model 11 is a better fit
+freq_glm_14 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_14) #AIC = 126133 this model is a better fit
+freq_glm_15 <- glm(nclaims ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + sex:powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_15) #AIC = 126131 this model is a better fit
+freq_glm_16 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + age:sex+ sex:powerc + age:codposs, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_16) #AIC = 126133 model 15 is a better fit
+freq_glm_17 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_17) #AIC = 126109 this model is a better fit
+freq_glm_18 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_18) #AIC = 126104 this model is a better fit
+freq_glm_19 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar + fuelc:coverp, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_19) #AIC = 126106 model 18 is a better fit
+freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar+ codposs:powerc, offset =log(expo), family =poisson(link = "log"),
+                  data = mtpl)
+summary(freq_glm_20) #AIC = 126106 model 18 is a better fit
+```
+
+
+To compare the models
+```{r, echo=F}
+AIC_glm_sex <- AIC(freq_gam_1)
+AIC_gam_sex <- extractAIC(freq_glm_age)[2]
+AIC <- round(c("AIC glm"= AIC_glm_sex, "AIC gam"=AIC_gam_sex))
+AIC
+
+AIC(freq_gam_1)
+```
+
