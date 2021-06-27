@@ -53,7 +53,7 @@ PART 1
 
 # 1 Importing dataset
 
-First, we need to import data from the file `Assignment.csv` into R. The file contains 163.657 rows with 16 variables. Every row represents an individual policyholder in our portfolio. One of most important columns are `nbrtotc`(number of claims for indiviudual policyholder) and `chargtot` (value of all claims for individual policyholder) as they represent frequency and severity, the amounts we are gpint to be fitting with models in this project.
+First, we need to import data from the file `Assignment.csv` into R. The file contains 163,657 rows with 16 variables. Every row represents an individual policyholder in our portfolio. One of most important columns are `nbrtotc`(number of claims for indiviudual policyholder) and `chargtot` (value of all claims for individual policyholder) as they represent frequency and severity, the amounts we are gpint to be fitting with models in this project.
 Let's have a look at our dataset:
 
 ```{r, echo=F}
@@ -420,87 +420,87 @@ kable(AIC_freq[min_AIC_freq,], align = "c")
 Now we have fitted frequency. But to determin the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for severity. 
 
 ```{r, echo=F, results="hide", fig.show='hide'}
-sev_glm_1 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_1 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_1) #AIC = 307984.4
+AIC(sev_glm_1) #AIC = 303002.9
 
-sev_glm_2 <- glm(amount ~ age + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_2 <- glm(amount ~ age + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc,  family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_2) #AIC = 308016.8 model 1 is a better fit
+AIC(sev_glm_2) #AIC = 303043.7 model 1 is a better fit
 
-sev_glm_3 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_3 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_3) #AIC = 307983.8 this model is a better fit
+AIC(sev_glm_3) #AIC = 303000.9 this model is a better fit
 
-sev_glm_4 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_4 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
+                  data = mtpl)
+AIC(sev_glm_4) #AIC = 303002.6  model 3 is a better fit
+
+sev_glm_4 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split  + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
 AIC(sev_glm_4) #AIC = 307978.1 this model is a better fit
 
-sev_glm_4 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_5 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_4) #AIC = 307978.1 this model is a better fit
+AIC(sev_glm_5) #AIC = 303000.9 model 3 is  a better fit
 
-sev_glm_5 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_6 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_5) #AIC = 307990.4 model 4 is  a better fit
+AIC(sev_glm_6) #AIC = 303005.8 model 3 is  a better fit
 
-sev_glm_6 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + sportc + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_7 <- glm(amount ~ age + sex + codposs + agecar + split + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_6) #AIC = 308132.9 model 4 is  a better fit
+AIC(sev_glm_7) #AIC = 303083.7 model 3 is a better fit
 
-sev_glm_7 <- glm(amount ~ age + sex + age:sex + codposs + agecar + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_8 <- glm(amount ~ age + sex  + codposs + fuelc + split + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_7) #AIC = 308003.7 model 4 is a better fit
+AIC(sev_glm_8) #AIC = 303039.2 model 3 is a better fit
 
-sev_glm_8 <- glm(amount ~ age + sex + age:sex + codposs + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_9 <- glm(amount ~ age + sex  + agecar + fuelc + split + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_8) #AIC = 308090.9 model 4 is a better fit
+AIC(sev_glm_9) #AIC = 303082.6 model 3 is a better fit
 
-sev_glm_9 <- glm(amount ~ age + sex + age:sex + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
-                  data = mtpl)
-AIC(sev_glm_9) #AIC = 307978.4 model 4 is a better fit
+sev_glm_10 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split + fleetc + coverp + powerc, family =Gamma(link = "log"),data = mtpl)
+AIC(sev_glm_10) #AIC = 303059.4 model 3 is a better fit
 
-sev_glm_10 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),data = mtpl)
-AIC(sev_glm_10) #AIC = 307984.2 model 4 is a better fit
+sev_glm_11 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split  + fleetc + sportc + coverp, family =Gamma(link = "log"),
+                  data = mtpl)
+AIC(sev_glm_11) #AIC = 303002.1 model 3 is a better fit
 
-sev_glm_11 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_12 <- glm(amount ~ age + sex , offset =log(expo), family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_11) #AIC = 308125.8 model 4 is a better fit
+AIC(sev_glm_12) #AIC =  303020.4 model 3 is a better fit
 
-sev_glm_12 <- glm(amount ~ age + sex + age:sex, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_13 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_12) #AIC =  309148.2 model 4 is a better fit
+AIC(sev_glm_13) #AIC = 309183.1 model 3 is a better fit 
 
-sev_glm_13 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_14 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_13) #AIC = 308377.6 model 4 is a better fit 
+AIC(sev_glm_14) #AIC = 303177.9 model 3 is a better fit
 
-sev_glm_14 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_15 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc, family = Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_14) #AIC = 307887.1 this model is a better fit
+AIC(sev_glm_15) #AIC = 303000.9 this model is a better fit
+sev_glm_16 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc , family = Gamma(link = "log"),
+                  data = mtpl)
+AIC(sev_glm_16) #AIC = 302931.3 model 15 is a better fit
 
-sev_glm_15 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc, offset =log(expo), family = Gamma(link = "log"),
+sev_glm_17 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc +age:split, family = Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_15) #AIC = 307841.9 this model is a better fit
-sev_glm_16 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs, offset =log(expo), family = Gamma(link = "log"),
-                  data = mtpl)
-AIC(sev_glm_16) #AIC = 307828.9 this model is a better fit
+AIC(sev_glm_17) #AIC = 302908.5 this model is a better fit
 
-sev_glm_17 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs +age:split, offset =log(expo), family = Gamma(link = "log"),
+sev_glm_18 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc +age:split + fleetc:sportc, family = Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_17) #AIC = 307770.4 this model is a better fit
+AIC(sev_glm_18) #AIC = 302914.1 model 17 is a better fit
 
-sev_glm_18 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs +age:split + fleetc:sportc, offset =log(expo), family = Gamma(link = "log"),
+sev_glm_19 <- glm(amount ~ age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split , family =Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_18) #AIC = 307772.2 model 17 is a better fit
+AIC(sev_glm_19) #AIC = 302913  model 17 is a better fit
 
-sev_glm_19 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs, offset =log(expo), family =Gamma(link = "log"),
+sev_glm_20 <- glm(amount ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split + codposs:powerc, family = Gamma(link = "log"),
                   data = mtpl)
-AIC(sev_glm_19) #AIC = 307690.5 this model is a better fit
-
-sev_glm_20 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs + codposs:powerc, offset =log(expo), family = Gamma(link = "log"),
-                  data = mtpl)
-AIC(sev_glm_20) #AIC = 307626.1 this model is a better fit
+AIC(sev_glm_20) #AIC = 302906.1 this model is a better fit
 ```
 
 In the table we show our 20 selected models. 
@@ -511,7 +511,7 @@ for(i in 1:20){
   AIC_sev[i,] <- c(paste("sev_glm_",i, sep =""), 0 ,round(AIC(get(paste("sev_glm_",i, sep =""))),1) ) 
 }
 
-AIC_sev$model <- c("1 + age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc","1 + age + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc","1 + age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + split + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + sportc + powerc","1 + age + sex + age:sex + codposs + agecar + split + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + agecar + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp","1 + age + sex + age:sex","1 + age + sex + age:sex + codposs + agecar + fuelc + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs +age:split","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs +age:split + fleetc:sportc","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs","1 + age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs + codposs:powerc")
+AIC_sev$model <- c("1 + age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc","1 + age + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc","1+ age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex + age:sex + codposs + agecar + fuelc + split  + fleetc + sportc + coverp + powerc","1 + age + sex  + codposs + agecar + fuelc + split + sportc + coverp + powerc","1 + age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + powerc","1 + age + sex + codposs + agecar + split + fleetc + sportc + coverp + powerc","1 + age + sex  + codposs + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex  + agecar + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex  + codposs + agecar + fuelc + split + fleetc + coverp + powerc","1 + age + sex  + codposs + agecar + fuelc + split  + fleetc + sportc + coverp","1 + age + sex","1 + age + sex  + codposs + agecar + fuelc + fleetc + sportc + coverp + powerc","1 + age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc","1 + age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc","1 + age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc","1 + age + sex  + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc +age:split","1 + age + sex + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc +age:split + fleetc:sportc","1 + age + sex  + codposs + agecar + fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split","1 + age + sex  + codposs + agecar + fuelc  + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split + codposs:powerc")
 
 min_AIC_sev = 1
 for(i in 2:20){
@@ -552,13 +552,16 @@ head(c("Pure premium" = pure_premium))
 
 ```{r, echo=F}
 library(boot)
+mtpl[is.na(mtpl)] <- 0
 bs <- function(formula, data, indices){
   d <- data[indices, ] #allows boot to select sample
   fit <- glm(formula, data = d)
   return(coef(fit))
 }
-bootobject <- boot(data = mtpl, statistic = bs, R = 1000, formula = amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs + codposs:powerc )
+bootobject <- boot(data = mtpl, statistic = bs, R = 1000, formula = amount ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split + codposs:powerc )
 bootobject
+
 plot(bootobject)
 
+quantile(bootobject$t0, 0.995)
 ```
