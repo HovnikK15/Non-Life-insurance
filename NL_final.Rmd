@@ -145,6 +145,8 @@ The next graph shows as that almost 50 % of the cars are 6 to 10 years old.
 And the last graph shows that most of the cars insured in our portfolio are not sport cars. 
 
 ```{r, echo=F, warning=FALSE, message=FALSE}
+mtpl$powerc = factor(mtpl$powerc, levels=c("<66", "66-110", ">110"))
+mtpl$agecar = factor(mtpl$agecar, levels=c("0-1", "2-5", "6-10", ">10"))
 ylab <- "Relative frequency"
 ggplot.bar <- function(DT, variable, xlab){
   ggplot(data = DT, aes(as.factor(variable)), environment = environment()) + theme_bw() + 
@@ -545,3 +547,18 @@ pure_premium = expected_frequency * expected_severity
 head(c("Pure premium" = pure_premium))
 ```
 
+
+
+
+```{r, echo=F}
+library(boot)
+bs <- function(formula, data, indices){
+  d <- data[indices, ] #allows boot to select sample
+  fit <- glm(formula, data = d)
+  return(coef(fit))
+}
+bootobject <- boot(data = mtpl, statistic = bs, R = 1000, formula = amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs + codposs:powerc )
+bootobject
+plot(bootobject)
+
+```
