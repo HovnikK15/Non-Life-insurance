@@ -6,6 +6,7 @@ author: "Klemen Hovnik and Manca Strgar"
 
 ```{r setup, include=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 ```
 
 ```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
@@ -64,6 +65,7 @@ kable(head(mtpl_orig), align = "c")
 ```
 
 As it can be seen our column names are not formated. So, we could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We aslo renamed `chargtot` into `amount`. For further analysis we will also replace `0` with `NA` in `amount` column, because we will need this kind of formatting for when we will try to fit severity later on.
+
 ```{r, echo=F}
 mtpl <- mtpl_orig %>%
   # rename all columns 
@@ -79,6 +81,7 @@ kable(head(mtpl), align = "c")
 ```
 
 # 2 Empirical analysis
+
 For the begining of our empirical analysis, we will calculate the empirical claim frequency. Empirical claim frequency rate is the anticipated percentage of insured that will make claims against insurance and the number of claims they will make during a certain period. So we calculate it as 
 $$emperical\ claim\ frequency = \frac{\sum{number\ of\ claims}}{\sum{exposure}}$$
  
@@ -86,6 +89,7 @@ $$emperical\ claim\ frequency = \frac{\sum{number\ of\ claims}}{\sum{exposure}}$
 
 kable(head(mtpl %>% summarize(emp_freq = sum(nclaims) / sum(expo)) ))
 ```
+
 We can see that our empirical claim frequency is low, so we will not expect a large number of claims per individual policyholder in our portfolio.
 
 To have a better understanding of our data we can make a graphic presentation of it.
@@ -97,7 +101,9 @@ var1 <-  sum((mtpl$nclaims - mean1)^2) /length(mtpl$nclaims)
 kable(head(c(mean = mean1, variance = var1)), col.names = "nclaims")
 
 ```
+
 We see that mean is really close to zero. But to convince you even more, that the majority of the policies have zero claims, we can show you in a graph. Graph below actually shows us that almost 150,000 of policies have zero claims and the number of policies that have more than zero claims is verry low.
+
 ```{r, echo=F}
 graph1<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
               fill = "red", alpha = 0.5) + 
@@ -121,7 +127,9 @@ We can also group the claims by the gender. In the result below we see that fema
 ```{r, echo = F, warning=FALSE, message=FALSE}
 freq_by_gen <- mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
 kable(head(freq_by_gen), align = "c")
+
 ```
+
 We played around with `nclaim`, but this is not the only data that we have. So let's graphically show side by side relative frequency for our given data. 
 First graph we already seen and it show the relative frequency of claim number. We see, as already discused, that the majority of policyholders have zero claims and as the number of claims rises, the frequency falls. 
 The second graph shows the exposure of our policyholders. The exposure represents the fraction of the year that the individual policyholder is insured. We can see, that most of policyholders are ensured for the whole year. 
@@ -135,7 +143,6 @@ One of most important variable in our data is age. We see that majority of our p
 The next variable in the power of the car. From the graph we can see that most of cars have less than 66kW.
 The next graph shows as that almost 50 % of the cars are 6 to 10 years old. 
 And the last graph shows that most of the cars insured in our portfolio are not sport cars. 
-
 
 ```{r, echo=F, warning=FALSE, message=FALSE}
 ylab <- "Relative frequency"
@@ -164,6 +171,7 @@ ggplot.bar(mtpl, mtpl$powerc, "power"),
 ggplot.bar(mtpl, mtpl$agecar, "car age"),
 ggplot.bar(mtpl, mtpl$sportc, "sport car"), ncol =4)
 ```
+
 Among our data, we also have an information about the postal code of Belgium in which the claim happened. We can show this in a map. We can see that most of the claims happen in urban areas. 
 
 ```{r, echo = F, warning=FALSE, message=FALSE, results="hide", fig.show='hide'}
@@ -208,39 +216,86 @@ ggplot(belgium_shape_sf) +
   theme_bw()
 ```
 
-# 3.2 The construction of a (technical) tariff structure (Manca)
-Firs lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariate gender, we will also include the log of exposure as an offset.
-```{r, echo=F}
+# 3.2 The construction of a (technical) tariff structure with Generalized Linear Model (GLM)
+
+To construct a (technical) tariff structure we first need to fit frequency and severity of claims in our portfolio. We decided that we will first do this with GLMs. To fit frequency with GLM we can use Poisson or Negative Binomial distribution. The best suitable distributios for severity fitting are Log-normal and Gamma distributions. For our exercise we decided that we will fit frequency with Poisson distribution and Severity with Gamma distribution.
+
+Firs lets build a Poisson GLM for number of claims, so we are building frequency model. We will built a GLM for number of claims as a function of a covariate gender, we will also include the log of exposure as an offset. We will do that with `glm` function.
+
+In `glm` we can define one variable as a function of covariates. In our example we will define `nclaims` as a function of covariate `sex`. As an offset we will include the log of `expo` (log of exposure). Then we need to define which family of distributions we want to use and as said before we will use Poisson distribution, which has a link function logaritmic function. And finally, we need to determine aour data set, which is `mtpl`. 
+We can write this as:
+$$ Y \sim Poisson\ \ with \\
+log(E(Y)) = x'* \beta, or \\
+E(Y) = e^{x'*\beta} $$
+
+When we run the code we get the following expected frequencies for female and male.
+
+```{r, echo=F, results = "hide"}
 freq_glm_sex <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
 
 freq_glm_sex %>% broom::tidy()
-freq_glm_sex %>% broom::augment(type.predict = "response")
+
 emp_freq_female <- exp(coef(freq_glm_sex)[1])
 emp_freq_male <- exp(coef(freq_glm_sex)[1]+coef(freq_glm_sex)[2])    
-
-c(emp_freq_female, emp_freq_male)
 ```
-If we now look back at the begining of our report, we analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. this is because we constructed the GLM with only one covariance (sex).
-In RStudio we also have a `predict` function that alows us to use our GLM model on new data frames. We can now dafine two new data frames, one being male drivers with exposure 1 and the other being the female drivers with exposure 1. And we can use `predict` function on these two new data frames
+```{r, echo=F}
+kable(head(c(Female = emp_freq_female, Male = emp_freq_male)), col.names = "Emp. frequency")
+```
+
+Here we modeled number of claims with sex and gor empirical frequency of claims per individual geneder. If we now look back at the begining of our report, we already analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. This is because we constructed the GLM with only one covariance (sex). If more were used the result would be different. 
+
+In RStudio we also have a `predict` function that alows us to use our GLM model on new data frames. We can now dafine two new data frames, one being male drivers with exposure 1 and the other being the female drivers with exposure 1. And we can use `predict` function on these two new data frames, we only need to yet determin the type of `predict` function. This means that we can do predictions on different levels:
+  1.level: "response" ~ we will construct the fitted value of expected value we are ftting (Y from above). We want to know, given the covariates that we observed for our X, what is the fitted value of expected outcome.
+  2.level: "terms" ~ This allows us to isolate one specific covariate and it's associated effect. 
+  3.level: "link" ~ We calculate the betas, we do not take the inverse of our link function. We will make a transition to the scale of response. 
+We will always predict on a level of response, because we are interested in the fitted value of expected outcome.
+
 ```{r, echo=F}
 male_driver <- data.frame(expo = 1, sex = "Male")
 female_driver <- data.frame(expo = 1, sex = "Female")
-c(predict(freq_glm_sex, newdata = male_driver,    
+kable(head(c(Female = predict(freq_glm_sex, newdata = female_driver,    
        type = "response"),
-predict(freq_glm_sex, newdata = female_driver, 
-       type = "response"))
+Male = predict(freq_glm_sex, newdata = male_driver, 
+       type = "response"))), col.names = "predicted frequency")
 ```
-Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We will firstly do Gamma GLM. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
-```{r, echo=F}
+
+We can see, that even on new data frame we get the same frequency per gender as before. 
+
+Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We decided to use Gamma distribution for severity fitting. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
+
+```{r, echo=F, results="hide"}
  
-sev_glm_1 <- glm(amount ~ sex, offset =log(expo),family = Gamma(link = "log"), data =mtpl)
-sev_glm_1
-sev_glm_1 %>% broom::tidy()
-sev_glm_1 %>% broom::augment(type.predict = "response")
+sev_glm_sex <- glm(amount ~ sex, offset =log(expo),family = Gamma(link = "log"), data =mtpl)
+sev_glm_sex
+sev_glm_sex %>% broom::tidy()
+
+emp_sev_female <- exp(coef(sev_glm_sex)[1])
+emp_sev_male <- exp(coef(sev_glm_sex)[1]+coef(sev_glm_sex)[2])  
 ```
-Zdej bom nardila neki modelou in potem bom z AIC jim primerjala in videla ker je najboljši (opiši postopek kako to narediš)
 ```{r, echo=F}
+kable(head(c(Female = emp_sev_female, Male = emp_sev_male)), col.names = "Emp. sevirity")
+
+```
+
+We can also use `predict` function for severity and calculated empirical severity on before determend new data sets (male and female driver with exposure 1).
+
+```{r, echo=F}
+male_driver <- data.frame(expo = 1, sex = "Male")
+female_driver <- data.frame(expo = 1, sex = "Female")
+kable(head(c(Female = predict(sev_glm_sex, newdata = female_driver,    
+       type = "response"),
+Male = predict(sev_glm_sex, newdata = male_driver, 
+       type = "response"))), col.names = "predicted severity")
+```
+
+We can see that also with the `predict` function, we get the same values. 
+
+Now, that we've seen how `glm` and `predict` functions work, let's try to fit frequency (`nclaims`) with our given covariates. We chose 20 different models for our model fitting. Chosen models are shown in the table below. But we also need to determen which criteria we will use to determine the best model. We decided that as a criteria we will use AIC. 
+
+The Akaike information criterion (AIC) is an estimator of prediction error and  provides relative quality of statistical models for a given set of data. AIC estimates the quality of each model which we can relative compare to each of the other models.The preferred model is the one with the minimum AIC value. We will use already build in functin `AIC` to determin the AIC value for every chosen model.
+
+```{r, echo=F, results="hide", fig.show='hide'}
 freq_glm_1 <- glm(nclaims ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
 AIC(freq_glm_1) #AIC = 126165.7
@@ -320,7 +375,11 @@ AIC(freq_glm_19) #AIC = 126104.3 this model is a better fit
 freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex+ agecar:fuelc+ sex:powerc + age:split + age:agecar + fuelc:coverp, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
 AIC(freq_glm_20) #AIC = 126106.2 model 19 is a better fit
+```
 
+If we shortly describe our thought process while determening the model. We firtsly used all the covariates for fitting the number of claims. Than in individual models we left out one of the covariates, to see if all of them make a significant difference in our modeled variable. The ones that did not make a significat impact on our frequeny, we left out. Than we also tried some interations between covariates. We tried the ones that we thought that are most important. Everytime that we got a model that was better than one before (so it had lower AIC) we build on that model, so that we really tried to get the best possible model we could. 
+
+```{r, echo=F}
 AIC_freq <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
 for(i in 1:20){
   AIC_freq[i,] <- c(paste("freq_glm_",i, sep =""), 0 ,round(AIC(get(paste("freq_glm_",i, sep =""))),1) ) 
@@ -334,24 +393,31 @@ for(i in 2:20){
 }
 
 kable(head(AIC_freq, n = 23), align = "c")
+```
+
+And now we can select the model with lowest AIC as the best model amoung our models for the frequency fitting. And this model is shown in the table below.
+
+```{r, echo=F}
 kable(AIC_freq[min_AIC_freq,], align = "c")
 
 # ne vem če bom to rabila
-a <- min(mtpl$age):max(mtpl$age)
-freq_glm_age <- glm( nclaims ~ age, offset=log(expo), data = mtpl, family = poisson(link ="log"))
-pred_glm_age <- predict(freq_glm_age, newdata = data.frame(age = a, expo = 1), type = "terms", se.fit = TRUE )
-b_glm_1 <- pred_glm_age$fit
-l_glm_1 <- pred_glm_age$fit - qnorm(0.975) * pred_glm_age$se.fit
-u_glm_1 <- pred_glm_age$fit + qnorm(0.975) * pred_glm_age$se.fit
-df <- data.frame (a, b_glm_1, l_glm_1, u_glm_1)
-p_glm_age <- ggplot(df, aes(x= a)) + ylim(-0.5,1)
-p_glm_age <- p_glm_age + geom_line(aes(a, b_glm_1), size = 1, col = "red")
-p_glm_age <- p_glm_age + geom_line(aes(a, u_glm_1), size =0.5, linetype = 2, col ="red") + geom_line(aes(a, l_glm_1), size = 0.5, linetype = 2, col = "red")
-p_glm_age <- p_glm_age + xlab("age") + ylab("fit") + theme_bw()
-p_glm_age
+#a <- min(mtpl$age):max(mtpl$age)
+#freq_glm_age <- glm( nclaims ~ age, offset=log(expo), data = mtpl, family = poisson(link ="log"))
+#pred_glm_age <- predict(freq_glm_age, newdata = data.frame(age = a, expo = 1), type = "terms", se.fit = TRUE )
+#b_glm_1 <- pred_glm_age$fit
+#l_glm_1 <- pred_glm_age$fit - qnorm(0.975) * pred_glm_age$se.fit
+#u_glm_1 <- pred_glm_age$fit + qnorm(0.975) * pred_glm_age$se.fit
+#df <- data.frame (a, b_glm_1, l_glm_1, u_glm_1)
+#p_glm_age <- ggplot(df, aes(x= a)) + ylim(-0.5,1)
+#p_glm_age <- p_glm_age + geom_line(aes(a, b_glm_1), size = 1, col = "red")
+#p_glm_age <- p_glm_age + geom_line(aes(a, u_glm_1), size =0.5, linetype = 2, col ="red") + geom_line(aes(a, l_glm_1), size = 0.5, linetype = 2, col = "red")
+#p_glm_age <- p_glm_age + xlab("age") + ylab("fit") + theme_bw()
+#p_glm_age
 ```
-Fitting severity model
-```{r, echo=F}
+
+Now we have fitted frequency. But to determin the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for severity. 
+
+```{r, echo=F, results="hide", fig.show='hide'}
 sev_glm_1 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset =log(expo), family =Gamma(link = "log"),
                   data = mtpl)
 AIC(sev_glm_1) #AIC = 307984.4
@@ -433,7 +499,11 @@ AIC(sev_glm_19) #AIC = 307690.5 this model is a better fit
 sev_glm_20 <- glm(amount ~ age + sex + age:sex + codposs + agecar + fuelc + agecar:fuelc + split + fleetc + sportc + coverp + powerc + sex:powerc + age:codposs + age:split + fuelc:codposs + codposs:powerc, offset =log(expo), family = Gamma(link = "log"),
                   data = mtpl)
 AIC(sev_glm_20) #AIC = 307626.1 this model is a better fit
+```
 
+In the table we show our 20 selected models. 
+
+```{r, echo=F}
 AIC_sev <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
 for(i in 1:20){
   AIC_sev[i,] <- c(paste("sev_glm_",i, sep =""), 0 ,round(AIC(get(paste("sev_glm_",i, sep =""))),1) ) 
@@ -449,98 +519,29 @@ for(i in 2:20){
 }
 
 kable(head(AIC_sev, n = 23), align = "c")
+```
+
+And the model with the lowest AIC is the following model.
+
+```{r, echo=F}
 kable(AIC_sev[min_AIC_sev,], align = "c")
 
 ```
 
-To get pure premium we need to combine frequency and severity. We need to calculated expected frequency and expected sevirity and then multiply them. This expected frequency and expected sevirity need to be calculated for some risk profiles (ie. some combinations of covariates) that we defined earlier. For each we will use the one with the lowest AIC as it is the best fit. For frequency this is `freq_glm_19` and for severity `sev_glm_20`. Now lets calculated their expected values with function `predict`
+To get pure premium we need to combine frequency and severity. We need to calculated expected frequency and expected sevirity and then multiply them. This expected frequency and expected sevirity need to be calculated for some risk profiles (ie. some combinations of covariates) that we defined earlier. For each we will use the one with the lowest AIC as it is the best fit. For frequency this is `freq_glm_19` and for severity `sev_glm_20`. Now lets calculated their expected values with function `predict` of type `response`.
 
 ```{r, echo=F}
 expected_frequency <- mean(predict(freq_glm_19, newdata = NULL, 
        type = "response"))
 expected_severity <- mean(predict(sev_glm_20, newdata = NULL, 
        type = "response"))
-c("Expected frequency" = expected_frequency, "Expected severity" = expected_severity)
+head(c("Expected frequency" = expected_frequency, "Expected severity" = expected_severity))
 ```
-We see that expected frequency is equal to 0.1239788 and expected sevirty 2527.4901645 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for
+
+We see that expected frequency is equal to 0.1239788 and expected sevirty 2527.4901645 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for.
+
 ```{r, echo=F}
 pure_premium = expected_frequency * expected_severity
-c("Pure premium" = pure_premium)
+head(c("Pure premium" = pure_premium))
 ```
-
-Now lets try some other model than GLM. We can model frequency and sevirity also with GAM.
-```{r, echo=F}
-library(mgcv)
-freq_gam_1 <- gam(nclaims ~ s(age, bs ="cr"),
-                  method = "REML",
-                  family = poisson(link = "log"), 
-                  data =mtpl)
-freq_gam_1
-
-freq_glm_age<- glm(nclaims ~ age, offset = log(expo), data = mtpl, family = poisson(link = "log")) 
-a <- min(mtpl$age):max(mtpl$age)
-pred_glm_age <- predict(freq_glm_age,
-                        newdata = data.frame(age = a, expo =1), 
-                        type = "terms", se.fit = TRUE)
-pred_glm_age
-```
-
-# 3.2 The construction of a (technical) tariff structure (Klemen)
-```{r, echo=F}
-
-mtpl %>% group_by(age) %>% 
-  summarize(emp_freq = sum(nclaims) / sum(expo)) %>% 
-  ggplot(aes(x = age, y = emp_freq)) + theme_bw() +
-  geom_point(color = "#003366") 
-
-glm.freq1 <- glm(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
-summary(glm.freq1)
-
-gam.freq1 <- gam(nclaims ~ fuelc, offset = log(expo), data = mtpl, family = poisson(link = "log"))
-summary(gam.freq1)
-
-gam.freq2 <- gam(nclaims ~ s(age), offset = log(expo), data = mtpl, family = poisson(link = "log"))
-summary(gam.freq2)
-
-pred <- predict(gam.freq2, type = "terms", se = TRUE)
-str(pred)
-
-b <- pred$fit[,1]
-l <- pred$fit[,1] - qnorm(0.975) * pred$se.fit[,1]
-u <- pred$fit[,1] + qnorm(0.975) * pred$se.fit[,1]
-x <- mtpl$age
-df <- unique(data.frame(x, b, l, u))
-df
-
-
-p <- ggplot(df, aes(x = x))
-p <- p + geom_line(aes(y = b), size = 1, col="#003366")
-p <- p + geom_line(aes(y = l), size = 0.5, linetype = 2, col="#99CCFF")
-p <- p + geom_line(aes(y = u), size = 0.5, linetype = 2, col="#99CCFF")
-p <- p + xlab("age") + ylab(expression(hat(f)(age))) + theme_bw()
-p
-
-ggplot.gam <- function(model,variable,gam_term,xlabel,ylabel){
-  pred <- predict(model, type = "terms", se = TRUE)
-  col_index <- which(colnames(pred$fit)==gam_term)
-  x <- variable
-  b <- pred$fit[, col_index]
-  l <- pred$fit[, col_index] - qnorm(0.975) * pred$se.fit[, col_index]
-  u <- pred$fit[, col_index] + qnorm(0.975) * pred$se.fit[, col_index]
-  df <- unique(data.frame(x, b, l, u))
-  p <- ggplot(df, aes(x = x))
-  p <- p + geom_line(aes(y = b), size = 1,col="#003366")
-  p <- p + geom_line(aes(y = l), size = 0.5, linetype = 2,col="#99CCFF")
-  p <- p + geom_line(aes(y = u), size = 0.5, linetype = 2,col="#99CCFF")
-  p <- p + xlab(xlabel) + ylab(ylabel) + theme_bw()
-  p
-}
-
-plot.gam.freq.age <- ggplot.gam(gam.freq2, mtpl$age, "s(age)", "age", expression(hat(f)(age)))
-plot.gam.freq.age
-
-
-```
-
-
 
