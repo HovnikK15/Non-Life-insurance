@@ -241,6 +241,7 @@ freq_glm_sex %>% broom::tidy()
 emp_freq_female <- exp(coef(freq_glm_sex)[1])
 emp_freq_male <- exp(coef(freq_glm_sex)[1]+coef(freq_glm_sex)[2])    
 ```
+
 ```{r, echo=F}
 kable(head(c(Female = emp_freq_female, Male = emp_freq_male)), col.names = "Emp. frequency")
 ```
@@ -293,7 +294,7 @@ Male = predict(sev_glm_sex, newdata = male_driver,
 
 We can see that also with the `predict` function, we get the same values. 
 
-Now, that we've seen how `glm` and `predict` functions work, let's try to fit frequency (`nclaims`) with our given covariates. We chose 20 different models for our model fitting. Chosen models are shown in the table below. But we also need to determen which criteria we will use to determine the best model. We decided that as a criteria we will use AIC. 
+Now, that we've seen how `glm` and `predict` functions work, let's try to fit frequency (`nclaims`) with our given covariates. We choose 20 different models for our model fitting. Chosen models are shown in the table below. But we also need to determen which criteria we will use to determine the best model. We decided that as a criteria we will use AIC. 
 
 The Akaike information criterion (AIC) is an estimator of prediction error and  provides relative quality of statistical models for a given set of data. AIC estimates the quality of each model which we can relative compare to each of the other models.The preferred model is the one with the minimum AIC value. We will use already build in functin `AIC` to determin the AIC value for every chosen model.
 
@@ -379,7 +380,7 @@ freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fl
 AIC(freq_glm_20) #AIC = 126106.2 model 19 is a better fit
 ```
 
-If we shortly describe our thought process while determening the model. We firtsly used all the covariates for fitting the number of claims. Than in individual models we left out one of the covariates, to see if all of them make a significant difference in our modeled variable. The ones that did not make a significat impact on our frequeny, we left out. Than we also tried some interations between covariates. We tried the ones that we thought that are most important. Everytime that we got a model that was better than one before (so it had lower AIC) we build on that model, so that we really tried to get the best possible model we could. 
+If we shortly describe our thought process while determening the model. We firstly used all the covariates for fitting the number of claims. Than in individual models we left out one of the covariates, to see if all of them make a significant difference in our modeled variable. The ones that did not make a significat impact on our frequeny, we left out. Than we also tried some interations between covariates. We tried the ones that we thought that are most important. Everytime that we got a model that was better than one before (so it had lower AIC) we build on that model, so that we really tried to get the best possible model we could. 
 
 ```{r, echo=F}
 AIC_freq <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
