@@ -80,7 +80,7 @@ mtpl$amount[mtpl$amount == 0] <- NA
 
 
 # 3.2 The construction of a (technical) tariff structure (Manca)
-Firs lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariance gender, we will also include the log of exposure as an offset.
+First lets build a Poisson GLM for numberof claims, so we are building frequency model. For frequency fitting is the best to use Poisson distribution or Negative Binomial distribution. We will built a GLM for number of claims as a function of a covariance gender, we will also include the log of exposure as an offset.
 ```{r, echo=F}
 freq_glm_sex <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "log"),
                   data = mtpl)
@@ -110,6 +110,7 @@ sev_glm_1
 sev_glm_1 %>% broom::tidy()
 sev_glm_1 %>% broom::augment(type.predict = "response")
 ```
+
 Now lets try some other model than GLM. We can model frequency and severity also with Generalized Additive Models (GAM).These models are exactly like the formula for a GLM except that smooth term, `s`,  can be added to the right hand side to specify that the linear predictor depends on smooth functions of predictors (or linear functionals of these).
 
 For our exercise we decided that we will fit frequency with Poisson distribution and Severity with Gamma distribution.
@@ -220,7 +221,7 @@ AIC_freq_min<- data.frame(model_name = c("freq_glm_19" ),
 kable(AIC_freq_min, align = "c")
 ```
 
-Now we have fitted frequency. But to determin the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for frequency. 
+Now we have fitted frequency. But to determine the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for frequency. 
 
 ```{r, echo=F}
 
@@ -292,7 +293,7 @@ for(i in x){
   AIC_sev_gam[i,] <- c(paste("sev_gam_",i, sep =""), 0 ,round(AIC(get(paste("sev_gam_",i, sep =""))),1) ) 
 }
 ```
-And the model with the lowest AIC is the following model.
+And the model with the lowest AIC is the following model:
 ```{r, echo=F}
 AIC_sev_min<- data.frame(model_name = c("sev_gam_19" ), 
                        model = c("1 + age + sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc + agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar"),
@@ -303,9 +304,6 @@ kable(AIC_sev_min, align = "c")
 
 To get pure premium we need to combine frequency and severity. We need to calculate expected frequency and expected severity and then multiply them. We will use model with the lowest AIC as it is the best fit. For frequency this is `freq_gam_19` and for severity `sev_gam_19`. Now lets calculate their expected values with function `predict`
 
-`freq_gam_19 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar, method = "REML", family =poisson(link = "log"),data = mtpl)`
-`sev_gam_19 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar, method = "REML", family =Gamma(link = "log"),data = mtpl)`
-
 ```{r, echo=F}
 expected_frequency_gam <- mean(predict(freq_gam_19, newdata = mtpl, 
        type = "response"))
@@ -315,6 +313,7 @@ expected_severity_gam <- mean(predict(sev_gam_19, newdata = mtpl,
        type = "response"))
 c("Expected frequency" = expected_frequency_gam, "Expected severity" = expected_severity_gam)
 ```
+
 We see that expected frequency is now equal to 0.1419955 and expected severty 1741.2533184 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for
 ```{r, echo=F}
 pure_premium_gam = expected_frequency_gam * expected_severity_gam
@@ -323,6 +322,7 @@ c("Pure premium" = pure_premium_gam)
 Compared to the previous regression with GLM model we see that the new calculated pure premium is higher (247) than the one before (221). But since this is only the value of the premium, we cannot assume that the GLM model is actually better than GAM.
 
 To actually see which regression is better for modelling our models on the data, we need to compare the calculated AIC for the best frequency and severity models for GLM and GAM regression. That is:
+
 ```{r, echo=F}
 AIC <- data.frame(model_name = c("freq_glm_19" , "freq_gam_19", "sev_glm_20", "sev_gam_19"), 
                        model = c("1+ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex + agecar:fuelc + sex:powerc + age:split + age:agecar","1+ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex + agecar:fuelc + sex:powerc + age:split + age:agecar", "1 + age + sex  + codposs + agecar + fuelc  + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split + codposs:powerc", "1 + age + sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc + agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar"),

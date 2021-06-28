@@ -53,18 +53,16 @@ PART 1
 
 # 1 Importing dataset
 
-First, we need to import data from the file `Assignment.csv` into R. The file contains 163,657 rows with 16 variables. Every row represents an individual policyholder in our portfolio. One of most important columns are `nbrtotc`(number of claims for indiviudual policyholder) and `chargtot` (value of all claims for individual policyholder) as they represent frequency and severity, the amounts we are gpint to be fitting with models in this project.
+First, we need to import data from the file `Assignment.csv` into R. The file contains 163,657 rows with 16 variables. Every row represents an individual policyholder in our portfolio. One of most important columns are `nbrtotc`(number of claims for indiviudual policyholder) and `chargtot` (value of all claims for individual policyholder) as they represent frequency and severity, the amounts we are going to be fitting with models in this project.
 Let's have a look at our dataset:
 
 ```{r, echo=F}
 mtpl_orig <- read.csv("Assignment.csv", header = TRUE)
 mtpl_orig=as_tibble(mtpl_orig)
 kable(head(mtpl_orig), align = "c")
-
-
 ```
 
-As it can be seen our column names are not formated. So, we could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We aslo renamed `chargtot` into `amount`. For further analysis we will also replace `0` with `NA` in `amount` column, because we will need this kind of formatting for when we will try to fit severity later on.
+As it can be seen, the column names are not formated. So, we could rename colums in our dataset to make it easier to work with. We will rename the column `nbrtotc` into `nclaims` as the number of claims, and `duree` into `expo` as exposure. For easier programming we will also rename `ageph` and `sexp` into `age` and `sex`. We also renamed `chargtot` into `amount`. For further analysis we will also replace `0` with `NA` in `amount` column, because we will need this kind of formatting for when we will try to fit severity later on.
 
 ```{r, echo=F}
 mtpl <- mtpl_orig %>%
@@ -82,7 +80,7 @@ kable(head(mtpl), align = "c")
 
 # 2 Empirical analysis
 
-For the begining of our empirical analysis, we will calculate the empirical claim frequency. Empirical claim frequency rate is the anticipated percentage of insured that will make claims against insurance and the number of claims they will make during a certain period. So we calculate it as 
+At the begining of our empirical analysis, we will calculate the empirical claim frequency. Empirical claim frequency rate is the anticipated percentage of insured that will make claims against insurance and the number of claims they will make during a certain period. So we calculate it as 
 $$emperical\ claim\ frequency = \frac{\sum{number\ of\ claims}}{\sum{exposure}}$$
  
 ```{r, echo=F}
@@ -102,7 +100,7 @@ kable(head(c(mean = mean1, variance = var1)), col.names = "nclaims")
 
 ```
 
-We see that mean is really close to zero. But to convince you even more, that the majority of the policies have zero claims, we can show you in a graph. Graph below actually shows us that almost 150,000 of policies have zero claims and the number of policies that have more than zero claims is verry low.
+We see that mean is really close to zero. But to convince you even more that the majority of the policies have zero claims, we can show you in a graph. Graph below actually shows us that almost 150,000 of policies have zero claims and the number of policies that have more than zero claims is very low.
 
 ```{r, echo=F}
 graph1<- ggplot(mtpl, aes(nclaims)) + geom_bar(col = "red", 
@@ -122,7 +120,7 @@ graph2 + geom_bar(aes(y = (..count..)/sum(..count..)),
   ggtitle("MTPL - relative number of claims")
 ```
 
-We can also group the claims by the gender. In the result below we see that females are in our case more risky, because they have slightly higher mean empirical frequency. Generally speaking this is probably quite unusual, as most of the statistics would show that men are more risky drivers than women.
+We can also group the claims by gender. In the result below we see that females are in our case more risky, because they have slightly higher mean empirical frequency. Generally speaking this is probably quite unusual, as most of the statistics would show that men are more risky drivers than women.
 
 ```{r, echo = F, warning=FALSE, message=FALSE}
 freq_by_gen <- mtpl %>%  group_by(sex) %>% summarize(emp_freq = sum(nclaims) / sum(expo))
@@ -131,17 +129,20 @@ kable(head(freq_by_gen), align = "c")
 ```
 
 We played around with `nclaim`, but this is not the only data that we have. So let's graphically show side by side relative frequency for our given data. 
-First graph we already seen and it show the relative frequency of claim number. We see, as already discused, that the majority of policyholders have zero claims and as the number of claims rises, the frequency falls. 
+
+First, the graph we already seen and it show the relative frequency of claim number. We see, as already discused, that the majority of policyholders have zero claims and as the number of claims rises, the frequency falls. 
+
 The second graph shows the exposure of our policyholders. The exposure represents the fraction of the year that the individual policyholder is insured. We can see, that most of policyholders are ensured for the whole year. 
-Third graph shows the severity of the claims. As most of the policyholders have zero claims, it does not come as a surprice that the higher relative frequency for severity is at zero. And also the higher the amount, the lower is the frequency as claims of high altitude rearly happen.
-The last graph in firs raw shows that most of policyholders have MTPL coverage, the nsecond most common is MTPL +  and the last MTPL +++.
-First graph in second row shows that most of our policyholders drive cars on petrol, only around 30 % of them have cars on gasoil. 
-Next graph shows that majority of policyholders in our portfolio are male. 
+Third graph shows the severity of the claims. As most of the policyholders have zero claims, it does not come as a surprise that the higher relative frequency for severity is at zero. And also the higher the amount, the lower is the frequency as claims of high altitude rearly happen.
+
+The last graph in the first row shows that most of policyholders have MTPL coverage, the second most common is MTPL +  and the last MTPL +++.
+First graph in second row shows that most of our policyholders drive cars on petrol, only around 30 % of them have cars on gasolin. 
+Next graph shows that the majority of policyholders in our portfolio are of male gender. 
 In seventh graph we can see that almost everyone's cars are for private use not professional. 
-Variable feet tells us if the insured car is part of a fleet. We see that most of them are not.
-One of most important variable in our data is age. We see that majority of our policyholders are 30 to 50 years old. 
-The next variable in the power of the car. From the graph we can see that most of cars have less than 66kW.
-The next graph shows as that almost 50 % of the cars are 6 to 10 years old. 
+Variable fleet tells us if the insured car is part of a fleet. We see that most of them are not.
+One of most important variable in our data is age. We see that majority of our policyholders are between 30 and 50 years old. 
+The next variable is the power of the car. From the graph we can see that most of cars have less than 66kW.
+The next graph shows us that almost 50 % of the cars are 6 to 10 years old. 
 And the last graph shows that most of the cars insured in our portfolio are not sport cars. 
 
 ```{r, echo=F, warning=FALSE, message=FALSE}
@@ -158,11 +159,11 @@ ggplot.hist<- function(DT,variable,xlab,binwidth){
     labs(x=xlab, y=ylab)
 } 
 
-sevirity_plot <- ggplot(data = mtpl, aes(mtpl$amount)) + geom_density(adjust = 3, col = "red", fill = "red") + xlim(0,1e4) + ylab(ylab) + xlab("sevirity") + theme_bw()
+severity_plot <- ggplot(data = mtpl, aes(mtpl$amount)) + geom_density(adjust = 3, col = "red", fill = "red") + xlim(0,1e4) + ylab(ylab) + xlab("severity") + theme_bw()
 
 grid.arrange(ggplot.bar(mtpl, mtpl$nclaims, "nclaims"),
 ggplot.hist(mtpl, mtpl$expo, "expo", NULL),
-sevirity_plot,
+severity_plot,
 ggplot.bar(mtpl, mtpl$coverp, "coverage"),
 ggplot.bar(mtpl, mtpl$fuelc, "fuel"),
 ggplot.bar(mtpl, mtpl$sex, "sex"),
@@ -218,19 +219,19 @@ ggplot(belgium_shape_sf) +
   theme_bw()
 ```
 
-# 3.2 The construction of a (technical) tariff structure with Generalized Linear Model (GLM)
+# 3 The construction of a (technical) tariff structure with Generalized Linear Model (GLM)
 
-To construct a (technical) tariff structure we first need to fit frequency and severity of claims in our portfolio. We decided that we will first do this with GLMs. To fit frequency with GLM we can use Poisson or Negative Binomial distribution. The best suitable distributios for severity fitting are Log-normal and Gamma distributions. For our exercise we decided that we will fit frequency with Poisson distribution and Severity with Gamma distribution.
+To construct a (technical) tariff structure we first need to fit frequency and severity of claims in our portfolio. We decided that we will first do this with GLMs. To fit frequency with GLM we can use Poisson or Negative Binomial distribution. The best suitable distributios for severity fitting are Log-normal and Gamma distributions. For our exercise we decided that we will fit frequency with Poisson distribution and severity with Gamma distribution.
 
-Firs lets build a Poisson GLM for number of claims, so we are building frequency model. We will built a GLM for number of claims as a function of a covariate gender, we will also include the log of exposure as an offset. We will do that with `glm` function.
+First lets build a Poisson GLM for number of claims, so we are building frequency model. We will built a GLM for number of claims as a function of a covariate gender, we will also include the log of exposure as an offset. We will do that with `glm` function.
 
-In `glm` we can define one variable as a function of covariates. In our example we will define `nclaims` as a function of covariate `sex`. As an offset we will include the log of `expo` (log of exposure). Then we need to define which family of distributions we want to use and as said before we will use Poisson distribution, which has a link function logaritmic function. And finally, we need to determine aour data set, which is `mtpl`. 
+In `glm` we can define one variable as a function of covariates. In our example we will define `nclaims` as a function of covariate `sex`. As an offset we will include the log of `expo` (log of exposure). Then we need to define which family of distributions we want to use and as said before we will use Poisson distribution, which has a link function - logaritmic function. And finally, we need to determine our data set, which is `mtpl`. 
 We can write this as:
 $$ Y \sim Poisson\ \ with \\
 log(E(Y)) = x'* \beta, or \\
 E(Y) = e^{x'*\beta} $$
 
-When we run the code we get the following expected frequencies for female and male.
+When we run the code we get the following expected frequencies for females and males.
 
 ```{r, echo=F, results = "hide"}
 freq_glm_sex <- glm(nclaims ~ sex, offset =log(expo), family =poisson(link = "log"),
@@ -246,9 +247,9 @@ emp_freq_male <- exp(coef(freq_glm_sex)[1]+coef(freq_glm_sex)[2])
 kable(head(c(Female = emp_freq_female, Male = emp_freq_male)), col.names = "Emp. frequency")
 ```
 
-Here we modeled number of claims with sex and gor empirical frequency of claims per individual geneder. If we now look back at the begining of our report, we already analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. This is because we constructed the GLM with only one covariance (sex). If more were used the result would be different. 
+Here we modelled number of claims with sex and for empirical frequency of claims per individual geneder. If we now look back at the begining of our report, we already analysed empirical frequency grouped by the gender. We can see, that we got the same result for empirical frequency by gender, as we did in the first part of the report. This is because we constructed the GLM with only one covariance (sex). If more were used the result would be different. 
 
-In RStudio we also have a `predict` function that alows us to use our GLM model on new data frames. We can now dafine two new data frames, one being male drivers with exposure 1 and the other being the female drivers with exposure 1. And we can use `predict` function on these two new data frames, we only need to yet determin the type of `predict` function. This means that we can do predictions on different levels:
+In RStudio we also have a `predict` function that alows us to use our GLM model on new data frames. We can now define two new data frames, one being male drivers with exposure 1 and the other being the female drivers with exposure 1. And we can use `predict` functions on these two new data frames, we only need to yet determin the type of `predict` function. This means that we can do predictions on different levels:
   1.level: "response" ~ we will construct the fitted value of expected value we are ftting (Y from above). We want to know, given the covariates that we observed for our X, what is the fitted value of expected outcome.
   2.level: "terms" ~ This allows us to isolate one specific covariate and it's associated effect. 
   3.level: "link" ~ We calculate the betas, we do not take the inverse of our link function. We will make a transition to the scale of response. 
@@ -265,7 +266,7 @@ Male = predict(freq_glm_sex, newdata = male_driver,
 
 We can see, that even on new data frame we get the same frequency per gender as before. 
 
-Now we will build a model for sevirity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We decided to use Gamma distribution for severity fitting. So for sevirity we will analyse variable `amount` in our mtpl data. We will again use only one explenatory variable sex. 
+Now we will build a model for severity information. For severity, the best distributions for fitting are Gamma and Log-normal distribution. We decided to use Gamma distribution for severity fitting. So for severity we will analyse variable `amount` in our mtpl data. We will again use only one explanatory variable - sex. 
 
 ```{r, echo=F, results="hide"}
  
@@ -277,7 +278,7 @@ emp_sev_female <- exp(coef(sev_glm_sex)[1])
 emp_sev_male <- exp(coef(sev_glm_sex)[1]+coef(sev_glm_sex)[2])  
 ```
 ```{r, echo=F}
-kable(head(c(Female = emp_sev_female, Male = emp_sev_male)), col.names = "Emp. sevirity")
+kable(head(c(Female = emp_sev_female, Male = emp_sev_male)), col.names = "Emp. severity")
 
 ```
 
@@ -380,7 +381,7 @@ freq_glm_20 <- glm(nclaims ~ age + sex  + codposs + agecar + fuelc  + split + fl
 AIC(freq_glm_20) #AIC = 126106.2 model 19 is a better fit
 ```
 
-If we shortly describe our thought process while determening the model. We firstly used all the covariates for fitting the number of claims. Than in individual models we left out one of the covariates, to see if all of them make a significant difference in our modeled variable. The ones that did not make a significat impact on our frequeny, we left out. Than we also tried some interations between covariates. We tried the ones that we thought that are most important. Everytime that we got a model that was better than one before (so it had lower AIC) we build on that model, so that we really tried to get the best possible model we could. 
+If we shortly describe our thought process while determining the model. We firstly used all the covariates for fitting the number of claims. Than in individual models we left out one of the covariates, to see if all of them make a significant difference in our modeled variable. The ones that did not make a significat impact on our frequeny, we left out. Than we also tried some interations between covariates. We tried the ones that we thought that are most important. Everytime that we got a model that was better than one before (so it had lower AIC) we build on that model, so that we really tried to get the best possible model we could. 
 
 ```{r, echo=F}
 AIC_freq <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
@@ -404,7 +405,7 @@ And now we can select the model with lowest AIC as the best model amoung our mod
 kable(AIC_freq[min_AIC_freq,], align = "c")
 ```
 
-Now we have fitted frequency. But to determin the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for severity. 
+Now we have fitted frequency. But to determine the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for severity. 
 
 ```{r, echo=F, results="hide", fig.show='hide'}
 sev_glm_1 <- glm(amount ~ age + sex + codposs + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
@@ -510,14 +511,14 @@ for(i in 2:20){
 kable(head(AIC_sev, n = 23), align = "c")
 ```
 
-And the model with the lowest AIC is the following model.
+And the severity model with the lowest AIC is the following model.
 
 ```{r, echo=F}
 kable(AIC_sev[min_AIC_sev,], align = "c")
 
 ```
 
-To get pure premium we need to combine frequency and severity. We need to calculated expected frequency and expected sevirity and then multiply them. This expected frequency and expected sevirity need to be calculated for some risk profiles (ie. some combinations of covariates) that we defined earlier. For each we will use the one with the lowest AIC as it is the best fit. For frequency this is `freq_glm_19` and for severity `sev_glm_20`. Now lets calculated their expected values with function `predict` of type `response`.
+To get pure premium we need to combine frequency and severity. We need to calculated expected frequency and expected severity and then multiply them. This expected frequency and expected severity need to be calculated for some risk profiles (ie. some combinations of covariates) that we defined earlier. For each we will use the one with the lowest AIC as it is the best fit. For frequency this is `freq_glm_19` and for severity `sev_glm_20`. Now lets calculate their expected values with function `predict` of type `response`.
 
 ```{r, echo=F}
 expected_frequency <- mean(predict(freq_glm_19, newdata = NULL, 
@@ -527,15 +528,17 @@ expected_severity <- mean(predict(sev_glm_20, newdata = NULL,
 head(c("Expected frequency" = expected_frequency, "Expected severity" = expected_severity))
 ```
 
-We see that expected frequency is equal to 0.1239788 and expected sevirty 2527.4901645 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for.
+We see that expected frequency is equal to 0.1239788 and expected severity is 2527.4901645 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for.
 
 ```{r, echo=F}
 pure_premium = expected_frequency * expected_severity
 head(c("Pure premium" = pure_premium))
 ```
 
+# 4 The construction of a (technical) tariff structure with Generalized Linear Model (GLM)
 
-#4. Demonstration of the calculation of a safety (or risk) loading on top of the pure premiums.
+
+# 5 Demonstration of the calculation of a safety (or risk) loading on top of the pure premiums.
 
 The risk premium of a policy is the sum of the pure premium and the risk loading. In the classification ratemaking process, generalized linear models are usually used to calculate pure premiums, and various premium principles are applied to derive the risk loadings.  No matter which premium principle is used, some risk loading parameters should be given in advance subjectively. To overcome this subjective problem and calculate the risk premium more reasonably and objectively, we propose a top-down method to calculate these risk loading parameters. First, we implement the bootstrap method to calculate the total risk premium of the portfolio. Then, under the constraint that the portfolio’s total risk premium should equal the sum of the risk premiums of each policy, the risk loading parameters are determined.
 
@@ -571,10 +574,11 @@ plot(bootobject)
 
 ```
 
-Upper graph representsthe distribution of total risk claims. And with 99.5 % quantile we will get the total risk premium.
+The graph above represents the distribution of total risk claims. And with 99.5 % quantile we will get the total risk premium.
 ```{r, echo=F}
 quantile(bootobject$t0, 0.995)
 ```
 
 So our risk premium is equal to  525.64. As our pure premium is equal to 221.29, the risk loading is equal to the difference, so risk loading is equal to 301.35.
-We leave a room for a possible mistake in calculation, because usually risk loading is a small percentage of pure premium, but in our case it is larger than the pure premium. 
+
+Here we leave a room for a possible mistakes in calculation, because usually risk loading is a small percentage of pure premium, but in our case it is larger than the pure premium. 
