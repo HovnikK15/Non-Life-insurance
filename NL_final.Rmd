@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r packages,  include=FALSE, warning = FALSE, message = FALSE}
 #package instalation:
-packages <- c("tidyverse", "mgcv", "evtree", "classInt", "rgdal", "RColorBrewer", "grid", "gridExtra", "visreg", "sf", "tmap", "rgeos", "mapview", "leaflet", "rmarkdown", "ggplot2", "kableExtra")
+packages <- c("tidyverse", "mgcv", "evtree", "classInt", "rgdal", "RColorBrewer", "grid", "gridExtra", "visreg", "sf", "tmap", "rgeos", "mapview", "leaflet", "rmarkdown", "ggplot2", "kableExtra","DT")
 suppressMessages(packages <- lapply(packages, FUN = function(x) {
   if (!require(x, character.only = TRUE)) {
     install.packages(x)
@@ -535,8 +535,226 @@ pure_premium = expected_frequency * expected_severity
 head(c("Pure premium" = pure_premium))
 ```
 
-# 4 The construction of a (technical) tariff structure with Generalized Linear Model (GLM)
+# 4 The construction of a (technical) tariff structure with Generalized Additive Models (GAM)
+Now lets try some other model than GLM. We can model frequency and severity also with Generalized Additive Models (GAM).These models are exactly like the formula for a GLM except that smooth term, `s`,  can be added to the right hand side to specify that the linear predictor depends on smooth functions of predictors (or linear functionals of these).
 
+For our exercise we decided that we will fit frequency with Poisson distribution and Severity with Gamma distribution.
+
+First, lets build a frequency model with Poisson and GAM for number of claims. We will built a GAM for number of claims as a function of a covariate gender, we will also include the log of exposure as an offset. We will do that with `gam` function.
+
+When we run the code we get the following expected frequencies for males and females:
+
+```{r, echo=F, include = False}
+freq_gam_age <- gam(nclaims ~ s(age, bs ="cr"),   #s = cr, denotes cubic regression splines
+                  offset = log(expo),
+                  family = poisson(link = "log"), 
+                  data =mtpl)
+freq_gam_sex <- gam(nclaims ~ sex,
+                  offset = log(expo),
+                  family = poisson(link = "log"), 
+                  data =mtpl)
+
+freq_gam_sex %>% broom::augment(type.predict = "response")
+emp_freq_female_gam <- exp(coef(freq_gam_sex)[1])
+emp_freq_male_gam <- exp(coef(freq_gam_sex)[1]+coef(freq_gam_sex)[2])   
+
+emp_freq_gam <- data.frame(Female = emp_freq_female_gam, 
+                      Male = emp_freq_male_gam)
+```
+
+```{r, echo=F}
+kable(head(emp_freq_gam))
+```
+As expected, the result is the same as before.
+
+Now, that we've seen how `gam` function work, let's try to fit frequency (`nclaims`) with our given covariates. We choose the same 20 models as before for our model fitting.
+
+```{r, echo=F, results="hide", fig.show='hide'}
+freq_gam_1 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_1 <- AIC(freq_gam_1) #AIC = 125572
+
+freq_gam_2 <- gam(nclaims ~ s(age) + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_2 <-AIC(freq_gam_2) #AIC = 125576  model 1 is a better fit
+
+freq_gam_3 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split +  fleetc + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_3 <- AIC(freq_gam_3) #AIC = 125571 this model is a better fit
+
+freq_gam_4 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + split + fleetc + sportc + coverp + powerc,  offset = log(expo), family =poisson(link = "log"), data = mtpl)
+AIC_freq_gam_4 <- AIC(freq_gam_4) #AIC = 125537 this model is a better fit
+
+freq_gam_5 <- gam(nclaims ~ s(age) + sex + age:sex + age:powerc + s(codposs) + agecar + fuelc + split +  fleetc + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_5 <- AIC(freq_gam_5) #AIC = 125538 model 4 is  a better fit
+
+freq_gam_6 <- gam(nclaims ~ s(age) + sex + age:sex +  s(codposs) + agecar + fuelc + split + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_6 <- AIC(freq_gam_6) #AIC = 125540 model 4 is  a better fit
+
+freq_gam_7 <- gam(nclaims ~ s(age) + sex + age:sex +  s(codposs) + agecar + fuelc + split + fleetc + sportc +  powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_7 <- AIC(freq_gam_7) #AIC = 125607 model 4 is  a better fit
+
+freq_gam_8 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + split + fleetc + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_8 <- AIC(freq_gam_8) #AIC = 125687 model 4 is  a better fit
+
+freq_gam_9 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + fuelc + split + fleetc + sportc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_9 <- AIC(freq_gam_9) #AIC = 125587 model 4 is  a better fit
+
+##freq_gam_10 <- gam(nclaims ~ s(age) + sex + age:sex + + agecar + fuelc + split + fleetc + sportc + coverp + powerc, offset = #log(expo), family =poisson(link = "log"),data = mtpl)
+##AIC(freq_gam_10) #AIC = 126314.5 model 4 is  a better fit
+
+freq_gam_11 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_11 <- AIC(freq_gam_11) #AIC = 125535 This model is a better fit
+
+freq_gam_12 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + split + fleetc + coverp, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_12 <- AIC(freq_gam_12) #AIC = 125576 model 11 is a better fit
+
+#freq_gam_13 <- gam(nclaims ~ s(age) + sex + age:sex, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+#AIC(freq_gam_13) #AIC =  12650573.1 model 11 is a better fit   needs too much time
+
+freq_gam_14 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + fleetc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_14 <- AIC(freq_gam_14) #AIC = 125864 model 11 is a better fit
+
+freq_gam_15 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_15 <- AIC(freq_gam_15) #AIC = 125525 this model is a better fit
+
+freq_gam_16 <- gam(nclaims ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + sex:powerc, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_16 <- AIC(freq_gam_16) #AIC = 125523 this model is a better fit
+
+#freq_gam_17 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + #age:sex + sex:powerc + age:codposs, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+#AIC(freq_gam_17) #  model 16 is a better fit
+
+freq_gam_18 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_18 <- AIC(freq_gam_18) #AIC = 125521.7 this model is a better fit
+
+freq_gam_19 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_19 <- AIC(freq_gam_19) #AIC = 125513.1 this model is a better fit
+
+freq_gam_20 <- gam(nclaims ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar + fuelc:coverp, offset = log(expo), family =poisson(link = "log"),data = mtpl)
+AIC_freq_gam_20 <- AIC(freq_gam_20) #AIC = 125515.4 model 19 is a better fit
+
+AIC(freq_gam_20) #AIC = 126106.2 model 19 is a better fit
+x <- c(1,2,3,4,5,6,7,8,9,11,12,14,15,16,18,19,20)
+AIC_freq_gam <- data.frame(model_name = numeric(0),  AIC = numeric(0))
+for(i in x ){
+  AIC_freq_gam[i,] <- c(paste("freq_gam_",i, sep =""),round(AIC(get(paste("freq_gam_",i, sep =""))),1) ) 
+}
+
+```
+Now we can select the model with lowest AIC as the best model amoung our models for the frequency fitting. And this model is shown in the table below.
+```{r, echo=F}
+AIC_freq_min<- data.frame(model_name = c("freq_glm_19" ), 
+                       model = c("1+ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex + agecar:fuelc + sex:powerc + age:split + age:agecar"),
+                  AIC = c(126104.3))
+kable(AIC_freq_min, align = "c")
+```
+
+Now we have fitted frequency. But to determine the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for frequency. 
+
+```{r, echo=F}
+
+sev_gam_1 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, family =Gamma(link = "log"),
+                  data = mtpl)
+AIC_sev_gam_1 <-AIC(sev_gam_1) #AIC = 302864.4
+
+sev_gam_2 <- gam(amount ~ s(age) + s(codposs) + agecar + fuelc + split + usec + fleetc + sportc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_2 <- AIC(sev_gam_2) #AIC = 302890.4  model 1 is a better fit
+
+sev_gam_3 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split +  fleetc + sportc + coverp + powerc, method = "REML", family = Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_3 <- AIC(sev_gam_3) #AIC = 302865 this model is a better fit
+
+sev_gam_4 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + split + fleetc + sportc + coverp + powerc,  method = "REML", family =Gamma(link = "log"), data = mtpl)
+AIC_sev_gam_4 <- AIC(sev_gam_4) #AIC = 302864.7 this model is a better fit
+
+sev_gam_5 <- gam(amount ~ s(age) + sex + age:sex + age:powerc + s(codposs) + agecar + fuelc + split +  fleetc + sportc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_5 <- AIC(sev_gam_5) #AIC = 302857.9 model 5 is  a better fit
+
+sev_gam_6 <- gam(amount ~ s(age) + sex + age:sex +  s(codposs) + agecar + fuelc + split + sportc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_6 <- AIC(sev_gam_6) #AIC = 302868.9 model 5 is  a better fit
+
+sev_gam_7 <- gam(amount ~ s(age) + sex + age:sex +  s(codposs) + agecar + fuelc + split + fleetc + sportc +  powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_7 <- AIC(sev_gam_7) #AIC = 302952 model 5 is  a better fit
+
+sev_gam_8 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + split + fleetc + sportc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_8 <- AIC(sev_gam_8) #AIC = 302897 model 5 is  a better fit
+
+sev_gam_9 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + fuelc + split + fleetc + sportc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_9 <- AIC(sev_gam_9) #AIC = 302937 model 5 is  a better fit
+
+sev_gam_10 <- gam(amount ~ s(age) + sex + age:sex + + agecar + fuelc + split + fleetc + sportc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_10 <- AIC(sev_gam_10) #AIC = 302981 model 5 is  a better fit
+
+sev_gam_11 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_11 <- AIC(sev_gam_11) #AIC = 302865.5  model 5 is a better fit
+
+sev_gam_12 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + split + fleetc + coverp, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_12 <- AIC(sev_gam_12) #AIC = 302887 model 5 is a better fit
+
+sev_gam_13 <- gam(amount ~ s(age) + sex + age:sex, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_13 <-AIC(sev_gam_13) #AIC =  303408 model 5 is a better fit   needs too much time
+
+sev_gam_14 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + fleetc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_14 <- AIC(sev_gam_14) 
+
+sev_gam_15 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_15 <- AIC(sev_gam_15) 
+
+sev_gam_16 <- gam(amount ~ s(age) + sex + age:sex + s(codposs) + agecar + fuelc + agecar:fuelc + split + fleetc + coverp + powerc + sex:powerc, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_16 <- AIC(sev_gam_16) #AIC = 302805 this model is a better fit
+
+#sev_gam_17 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex #+ sex:powerc + age:codposs, method = "REML", family =Gamma(link = "log"), data = mtpl)
+#AIC_sev_gam_17 <- AIC(sev_gam_17) #  model 16 is a better fit
+#AIC_sev_gam_17 
+
+sev_gam_18 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_18 <- AIC(sev_gam_18) #AIC = 302798 this model is a better fit
+
+sev_gam_19 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_19 <- AIC(sev_gam_19) #AIC = 302783 this model is a better fit
+
+sev_gam_20 <- gam(amount ~ s(age) + sex + s(codposs) + agecar + fuelc + split + fleetc + coverp + powerc +  agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar + fuelc:coverp, method = "REML", family =Gamma(link = "log"),data = mtpl)
+AIC_sev_gam_20 <- AIC(sev_gam_20) #AIC = 302786 model 19 is a better fit
+
+x <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,19,20)
+AIC_sev_gam <- data.frame(model_name = numeric(0), model = numeric(0), AIC = numeric(0))
+for(i in x){
+  AIC_sev_gam[i,] <- c(paste("sev_gam_",i, sep =""), 0 ,round(AIC(get(paste("sev_gam_",i, sep =""))),1) ) 
+}
+```
+And the model with the lowest AIC is the following model:
+```{r, echo=F}
+AIC_sev_min<- data.frame(model_name = c("sev_gam_19" ), 
+                       model = c("1 + age + sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc + agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar"),
+                  AIC = c(302783))
+kable(AIC_sev_min, align = "c")
+```
+
+
+To get pure premium we need to combine frequency and severity. We need to calculate expected frequency and expected severity and then multiply them. We will use model with the lowest AIC as it is the best fit. For frequency this is `freq_gam_19` and for severity `sev_gam_19`. Now lets calculate their expected values with function `predict`
+
+```{r, echo=F}
+expected_frequency_gam <- mean(predict(freq_gam_19, newdata = mtpl, 
+       type = "response"))
+
+
+expected_severity_gam <- mean(predict(sev_gam_19, newdata = mtpl, 
+       type = "response"))
+c("Expected frequency" = expected_frequency_gam, "Expected severity" = expected_severity_gam)
+```
+
+We see that expected frequency is now equal to 0.1419955 and expected severty 1741.2533184 EUR (or some other currency). If we multiply this two values we will get the pure premium that we are looking for
+```{r, echo=F}
+pure_premium_gam = expected_frequency_gam * expected_severity_gam
+c("Pure premium" = pure_premium_gam)
+```
+Compared to the previous regression with GLM model we see that the new calculated pure premium is higher (247) than the one before (221). But since this is only the value of the premium, we cannot assume that the GLM model is actually better than GAM.
+
+To actually see which regression is better for modelling our models on the data, we need to compare the calculated AIC for the best frequency and severity models for GLM and GAM regression. That is:
+
+```{r, echo=F}
+AIC <- data.frame(model_name = c("freq_glm_19" , "freq_gam_19", "sev_glm_20", "sev_gam_19"), 
+                       model = c("1+ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex + agecar:fuelc + sex:powerc + age:split + age:agecar","1+ age + sex  + codposs + agecar + fuelc  + split + fleetc + coverp + powerc + age:sex + agecar:fuelc + sex:powerc + age:split + age:agecar", "1 + age + sex  + codposs + agecar + fuelc  + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split + codposs:powerc", "1 + age + sex + codposs + agecar + fuelc + split + fleetc + coverp + powerc + agecar:fuelc + age:sex + sex:powerc + age:split + age:agecar"),
+                  AIC = c(126104.3,125513.1,302906.1,302783))
+kable(AIC, align = "c")
+```
+From the values of AICs we see that for estimating both frequency and severity for using the GAM regression model is better than using GLM.
 
 # 5 Demonstration of the calculation of a safety (or risk) loading on top of the pure premiums.
 
@@ -555,7 +773,7 @@ We will use a bootstrap method to calculate the total risk premium of the whole 
 then predict the total risk premium of the whole portfolio according to the following procedure.
 Step 1: Simulate a pseudo-response of the aggregate claim amount ˜yi for policy i from density function $f_{Y_{i}}(y_{i}| \mu_{i},p_{i}, \sigma_{i}) $, i = 1,..., N (N in our case 163,657). 
 Step 2: Use the pseudo-responses to form the  $b^{th}$ bootstrap sample to do the bootstrap replication of parameters.We will do this with a `boot` function implemented in Rstudio. 
-STep 3:  Repeating these two steps for b = 1, ..., B, we obtain a predictive distribution of aggregate claim amounts for the whole portfolio. As a result, the total risk premium for the whole portfolio is the (1 − Ψ)-th quantile of the aggregate claim amount for the whole portfolio, and the total pure
+Step 3:  Repeating these two steps for b = 1, ..., B,(in our case we did 1000 repeats) we obtain a predictive distribution of aggregate claim amounts for the whole portfolio. As a result, the total risk premium for the whole portfolio is the (1 − Ψ)-th quantile of the aggregate claim amount for the whole portfolio, and the total pure
 premium for the whole portfolio is the mean of the aggregate of claim amount for the whole portfolio. The total risk loading for the whole portfolio is calculated by the difference between the total risk premium and the total pure premium.
 
 We will demonstrate the calculation on glm model. 
