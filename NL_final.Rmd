@@ -402,20 +402,6 @@ And now we can select the model with lowest AIC as the best model amoung our mod
 
 ```{r, echo=F}
 kable(AIC_freq[min_AIC_freq,], align = "c")
-
-# ne vem če bom to rabila
-#a <- min(mtpl$age):max(mtpl$age)
-#freq_glm_age <- glm( nclaims ~ age, offset=log(expo), data = mtpl, family = poisson(link ="log"))
-#pred_glm_age <- predict(freq_glm_age, newdata = data.frame(age = a, expo = 1), type = "terms", se.fit = TRUE )
-#b_glm_1 <- pred_glm_age$fit
-#l_glm_1 <- pred_glm_age$fit - qnorm(0.975) * pred_glm_age$se.fit
-#u_glm_1 <- pred_glm_age$fit + qnorm(0.975) * pred_glm_age$se.fit
-#df <- data.frame (a, b_glm_1, l_glm_1, u_glm_1)
-#p_glm_age <- ggplot(df, aes(x= a)) + ylim(-0.5,1)
-#p_glm_age <- p_glm_age + geom_line(aes(a, b_glm_1), size = 1, col = "red")
-#p_glm_age <- p_glm_age + geom_line(aes(a, u_glm_1), size =0.5, linetype = 2, col ="red") + geom_line(aes(a, l_glm_1), size = 0.5, linetype = 2, col = "red")
-#p_glm_age <- p_glm_age + xlab("age") + ylab("fit") + theme_bw()
-#p_glm_age
 ```
 
 Now we have fitted frequency. But to determin the pure premium we also have to fit severity of claims in our portfolio. We did that with the same thought process as for severity. 
@@ -549,8 +535,27 @@ head(c("Pure premium" = pure_premium))
 ```
 
 
+#4. Demonstration of the calculation of a safety (or risk) loading on top of the pure premiums.
 
+The risk premium of a policy is the sum of the pure premium and the risk loading. In the classification ratemaking process, generalized linear models are usually used to calculate pure premiums, and various premium principles are applied to derive the risk loadings.  No matter which premium principle is used, some risk loading parameters should be given in advance subjectively. To overcome this subjective problem and calculate the risk premium more reasonably and objectively, we propose a top-down method to calculate these risk loading parameters. First, we implement the bootstrap method to calculate the total risk premium of the portfolio. Then, under the constraint that the portfolio’s total risk premium should equal the sum of the risk premiums of each policy, the risk loading parameters are determined.
 
+In Solvency II regulation, the probability that the aggregate claim amount of the whole portfolio 
+$$ S = \sum_{i = 1}^{N}Y_{i}$$
+(where $Y_{i}$ denotes the aggregate claim amount for individual policy i) exceeds its total risk premium that the insurance company will charge should be controlled in a small range, such as less that 0.5%.
+For the whole portfolio, suppose that the aggregate claim amount S has the cumulative distribution function $F_{S}$ and its total risk premiumis denoted by C; then, the probability that the aggregate claim amount of the whole portfolio exceeds its total risk premium is given by
+$$ \Phi = Pr[S > C] = 1 - F_{S}(C)  $$
+From this equation we obtain the total risk premium of the whole portfolio as
+$$ C = F_{S}^{-1}(1 - \Phi) $$
+where  $ F_{S}^{-1}(\epsilon) $ denotes the ε-th quantile of S.
+
+We will use a bootstrap method to calculate the total risk premium of the whole portfolio. First, We generate a sequence of pseudo individual aggregate claim amounts and
+then predict the total risk premium of the whole portfolio according to the following procedure.
+Step 1: Simulate a pseudo-response of the aggregate claim amount ˜yi for policy i from density function $f_{Y_{i}}(y_{i}| \mu_{i},p_{i}, \sigma_{i}) $, i = 1,..., N (N in our case 163,657). 
+Step 2: Use the pseudo-responses to form the  $b^{th}$ bootstrap sample to do the bootstrap replication of parameters.We will do this with a `boot` function implemented in Rstudio. 
+STep 3:  Repeating these two steps for b = 1, ..., B, we obtain a predictive distribution of aggregate claim amounts for the whole portfolio. As a result, the total risk premium for the whole portfolio is the (1 − Ψ)-th quantile of the aggregate claim amount for the whole portfolio, and the total pure
+premium for the whole portfolio is the mean of the aggregate of claim amount for the whole portfolio. The total risk loading for the whole portfolio is calculated by the difference between the total risk premium and the total pure premium.
+
+We will demonstrate the calculation on glm model. 
 ```{r, echo=F}
 library(boot)
 mtpl[is.na(mtpl)] <- 0
@@ -560,9 +565,16 @@ bs <- function(formula, data, indices){
   return(coef(fit))
 }
 bootobject <- boot(data = mtpl, statistic = bs, R = 1000, formula = amount ~ age + sex  + codposs + agecar + fuelc  + split + fleetc + sportc + coverp + powerc + sex:powerc  + age:split + codposs:powerc )
-bootobject
+#bootobject
 
 plot(bootobject)
 
+```
+
+Upper graph representsthe distribution of total risk claims. And with 99.5 % quantile we will get the total risk premium.
+```{r, echo=F}
 quantile(bootobject$t0, 0.995)
 ```
+
+So our risk premium is equal to  525.64. As our pure premium is equal to 221.29, the risk loading is equal to the difference, so risk loading is equal to 301.35.
+We leave a room for a possible mistake in calculation, because usually risk loading is a small percentage of pure premium, but in our case it is larger than the pure premium. 
